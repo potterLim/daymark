@@ -33,7 +33,7 @@ git diff --check
 권장 경로:
 
 ```text
-~/Desktop/daymark-final-qa-YYYYMMDD-HHMMSS
+./.local/qa/daymark-final-qa-YYYYMMDD-HHMMSS
 ```
 
 커밋하지 않을 항목:

@@ -113,7 +113,7 @@ GitHub에 저장하면 안 되는 것:
 ### 1. 최신 코드 받기
 
 ```bash
-cd /Users/potterlim/Developments/Projects/daymark
+cd <daymark-repository>
 git status
 git pull --ff-only
 ```
@@ -125,7 +125,7 @@ git pull --ff-only
 프로젝트 경로:
 
 ```text
-/Users/potterlim/Developments/Projects/daymark
+<daymark-repository>
 ```
 
 수정 기준:
