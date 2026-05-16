@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".dockerignore"
+      - "Dockerfile"
+      - "build.gradle"
+      - "gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - "settings.gradle"
+      - "src/**"
   workflow_dispatch:
 
 permissions:
