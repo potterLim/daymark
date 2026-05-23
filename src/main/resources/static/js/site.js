@@ -1,13 +1,20 @@
 document.addEventListener("DOMContentLoaded", () => {
     const appHeader = document.querySelector("[data-app-header]");
     const externalBrowserDialogElement = document.querySelector("[data-external-browser-dialog]");
+    let headerScrolled = null;
 
     const updateHeaderState = () => {
         if (!appHeader) {
             return;
         }
 
-        appHeader.classList.toggle("is-scrolled", window.scrollY > 12);
+        const nextHeaderScrolled = window.scrollY > 12;
+        if (headerScrolled === nextHeaderScrolled) {
+            return;
+        }
+
+        headerScrolled = nextHeaderScrolled;
+        appHeader.classList.toggle("is-scrolled", headerScrolled);
     };
 
     window.addEventListener("scroll", updateHeaderState, {passive: true});
