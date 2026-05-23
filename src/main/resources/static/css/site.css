@@ -187,11 +187,10 @@ ol {
     top: 0;
     z-index: 20;
     padding: 18px 0 0;
-    transition: padding var(--transition-base);
 }
 
 .app-header.is-scrolled {
-    padding-top: 10px;
+    padding-top: 18px;
 }
 
 .topbar-shell {
@@ -205,13 +204,12 @@ ol {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(245, 249, 255, 0.72) 100%);
     box-shadow: 0 22px 65px rgba(17, 34, 65, 0.1);
     backdrop-filter: blur(28px);
-    transition: transform var(--transition-base), box-shadow var(--transition-base), background var(--transition-base);
+    transition: box-shadow var(--transition-base), background var(--transition-base);
 }
 
 .app-header.is-scrolled .topbar-shell {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(245, 249, 255, 0.82) 100%);
     box-shadow: 0 28px 70px rgba(17, 34, 65, 0.14);
-    transform: translateY(-1px);
 }
 
 .brand-lockup {
@@ -4190,7 +4188,7 @@ ol {
     }
 
     .app-header.is-scrolled {
-        padding-top: 8px;
+        padding-top: 10px;
     }
 
     .app-main {
