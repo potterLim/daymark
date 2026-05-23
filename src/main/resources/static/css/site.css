@@ -190,7 +190,7 @@ ol {
 }
 
 .app-header.is-scrolled {
-    padding-top: 18px;
+    padding-top: 10px;
 }
 
 .topbar-shell {
@@ -4188,7 +4188,7 @@ ol {
     }
 
     .app-header.is-scrolled {
-        padding-top: 10px;
+        padding-top: 8px;
     }
 
     .app-main {
