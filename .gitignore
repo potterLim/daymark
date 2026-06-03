@@ -24,6 +24,11 @@ local-docs/
 /playwright-report/
 /test-results/
 
+# Local-only operations documents
+/docs/deployment.md
+/docs/operations-handoff.md
+/docs/release-readiness.md
+
 # User exports, backups, and data snapshots
 /exports/
 /backups/
