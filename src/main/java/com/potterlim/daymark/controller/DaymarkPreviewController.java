@@ -43,15 +43,14 @@ public class DaymarkPreviewController {
         mOperationUsageEventService.recordUserEvent(EOperationEventType.RECORD_PREVIEW_VIEWED, userAccountId);
         String markdownText = mDaymarkService.readEntryMarkdownContent(date, userAccountId);
         boolean hasPreviewContent = !markdownText.isBlank();
+        String previewHtml = "";
+        if (hasPreviewContent) {
+            previewHtml = mDaymarkRecordViewService.buildPreviewHtml(markdownText);
+        }
 
         model.addAttribute("previewDate", date);
         model.addAttribute("hasPreviewContent", hasPreviewContent);
-        model.addAttribute(
-            "previewHtml",
-            hasPreviewContent
-                ? mDaymarkRecordViewService.buildPreviewHtml(markdownText)
-                : ""
-        );
+        model.addAttribute("previewHtml", previewHtml);
         return "daymark/log-preview";
     }
 }

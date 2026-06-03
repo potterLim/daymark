@@ -39,9 +39,11 @@ public class PostLoginRedirectPathResolver {
                 return "/";
             }
 
-            return redirectQueryOrNull == null || redirectQueryOrNull.isBlank()
-                ? redirectPath
-                : redirectPath + "?" + redirectQueryOrNull;
+            if (redirectQueryOrNull == null || redirectQueryOrNull.isBlank()) {
+                return redirectPath;
+            }
+
+            return redirectPath + "?" + redirectQueryOrNull;
         } catch (IllegalArgumentException illegalArgumentException) {
             return "/";
         }
@@ -64,7 +66,11 @@ public class PostLoginRedirectPathResolver {
             queryBuilder.append(queryParameter);
         }
 
-        return queryBuilder.isEmpty() ? null : queryBuilder.toString();
+        if (queryBuilder.isEmpty()) {
+            return null;
+        }
+
+        return queryBuilder.toString();
     }
 
     private static boolean isAllowedPostLoginRedirectPath(String redirectPathOrNull) {

@@ -146,8 +146,7 @@ public class SecurityConfiguration {
 
     @Bean
     public RememberMeServices createRememberMeServices(SecurityUserDetailsService securityUserDetailsService) {
-        DaymarkApplicationProperties.SecurityProperties securityProperties =
-            mDaymarkApplicationProperties.getSecurity();
+        DaymarkApplicationProperties.SecurityProperties securityProperties = mDaymarkApplicationProperties.getSecurity();
         TokenBasedRememberMeServices tokenBasedRememberMeServices =
             new TokenBasedRememberMeServices(securityProperties.getRememberMeKey(), securityUserDetailsService);
 

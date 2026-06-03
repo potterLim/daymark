@@ -109,7 +109,11 @@ public class OperationsAdminController {
 
     private static LocalDate resolveSelectedWeekEndDate(LocalDate selectedWeekStartDate, LocalDate currentDate) {
         LocalDate selectedWeekEndDate = selectedWeekStartDate.plusDays(6L);
-        return selectedWeekEndDate.isAfter(currentDate) ? currentDate : selectedWeekEndDate;
+        if (selectedWeekEndDate.isAfter(currentDate)) {
+            return currentDate;
+        }
+
+        return selectedWeekEndDate;
     }
 
     private static LocalDate resolveWeekStartDate(LocalDate referenceDate) {

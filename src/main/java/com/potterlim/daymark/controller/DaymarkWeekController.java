@@ -36,8 +36,7 @@ public class DaymarkWeekController {
     ) {
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.WEEKLY_REVIEW_VIEWED, userAccountId);
-        WeeklyProgressViewDto weeklyProgressViewDto =
-            mDaymarkWeeklyProgressService.buildWeeklyProgressView(weekOffset, userAccountId);
+        WeeklyProgressViewDto weeklyProgressViewDto = mDaymarkWeeklyProgressService.buildWeeklyProgressView(weekOffset, userAccountId);
 
         model.addAttribute("weeklyProgressItems", weeklyProgressViewDto.getWeeklyProgressItems());
         model.addAttribute("weekAchieved", weeklyProgressViewDto.getWeeklyAchievedGoalCount());

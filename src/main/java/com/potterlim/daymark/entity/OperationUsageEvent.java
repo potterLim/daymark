@@ -42,7 +42,11 @@ public class OperationUsageEvent {
         LocalDateTime occurredAt
     ) {
         mEventType = eventType;
-        mUserAccountId = userAccountIdOrNull == null ? null : userAccountIdOrNull.getValue();
+        if (userAccountIdOrNull == null) {
+            mUserAccountId = null;
+        } else {
+            mUserAccountId = userAccountIdOrNull.getValue();
+        }
         mOccurredAt = occurredAt;
         mEventDate = occurredAt.toLocalDate();
     }

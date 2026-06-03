@@ -110,9 +110,13 @@ public class SimpleMarkdownRenderer {
         String itemText = line.substring(6).trim();
 
         htmlBuilder.append("<li>")
-            .append("<input type=\"checkbox\" disabled")
-            .append(isChecked ? " checked" : "")
-            .append(" /> ")
+            .append("<input type=\"checkbox\" disabled");
+
+        if (isChecked) {
+            htmlBuilder.append(" checked");
+        }
+
+        htmlBuilder.append(" /> ")
             .append(HtmlUtils.htmlEscape(itemText))
             .append("</li>");
     }

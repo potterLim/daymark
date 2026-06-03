@@ -72,8 +72,10 @@ public final class OperationsTrendViewDto {
         );
 
         OperationsTrendPointDto latestTrendPoint = trendPoints.get(trendPoints.size() - 1);
-        OperationsTrendPointDto previousTrendPointOrNull =
-            trendPoints.size() > 1 ? trendPoints.get(trendPoints.size() - 2) : null;
+        OperationsTrendPointDto previousTrendPointOrNull = null;
+        if (trendPoints.size() > 1) {
+            previousTrendPointOrNull = trendPoints.get(trendPoints.size() - 2);
+        }
 
         return new OperationsTrendViewDto(
             trendPoints,
@@ -83,19 +85,19 @@ public final class OperationsTrendViewDto {
             buildLinePoints(trendPoints, OperationsTrendPointDto::getGoalCompletionYAxisCoordinate),
             formatLongDelta(
                 latestTrendPoint.getWeeklyActiveUsers(),
-                previousTrendPointOrNull == null ? null : previousTrendPointOrNull.getWeeklyActiveUsers()
+                readPreviousWeeklyActiveUsersOrNull(previousTrendPointOrNull)
             ),
             formatLongDelta(
                 latestTrendPoint.getWeeklyWritingUsers(),
-                previousTrendPointOrNull == null ? null : previousTrendPointOrNull.getWeeklyWritingUsers()
+                readPreviousWeeklyWritingUsersOrNull(previousTrendPointOrNull)
             ),
             formatLongDelta(
                 latestTrendPoint.getExportCount(),
-                previousTrendPointOrNull == null ? null : previousTrendPointOrNull.getExportCount()
+                readPreviousExportCountOrNull(previousTrendPointOrNull)
             ),
             formatPercentPointDelta(
                 latestTrendPoint.getGoalCompletionRatePercent(),
-                previousTrendPointOrNull == null ? null : previousTrendPointOrNull.getGoalCompletionRatePercent()
+                readPreviousGoalCompletionRatePercentOrNull(previousTrendPointOrNull)
             ),
             previousTrendPointOrNull != null
         );
@@ -232,7 +234,11 @@ public final class OperationsTrendViewDto {
         }
 
         long delta = currentValue - previousValueOrNull;
-        return delta >= 0L ? "+" + delta : String.valueOf(delta);
+        if (delta >= 0L) {
+            return "+" + delta;
+        }
+
+        return String.valueOf(delta);
     }
 
     private static String formatPercentPointDelta(double currentValue, Double previousValueOrNull) {
@@ -242,5 +248,39 @@ public final class OperationsTrendViewDto {
 
         double delta = currentValue - previousValueOrNull;
         return String.format(Locale.US, "%+.1fp", delta);
+    }
+
+    private static Long readPreviousWeeklyActiveUsersOrNull(OperationsTrendPointDto previousTrendPointOrNull) {
+        if (previousTrendPointOrNull == null) {
+            return null;
+        }
+
+        return previousTrendPointOrNull.getWeeklyActiveUsers();
+    }
+
+    private static Long readPreviousWeeklyWritingUsersOrNull(OperationsTrendPointDto previousTrendPointOrNull) {
+        if (previousTrendPointOrNull == null) {
+            return null;
+        }
+
+        return previousTrendPointOrNull.getWeeklyWritingUsers();
+    }
+
+    private static Long readPreviousExportCountOrNull(OperationsTrendPointDto previousTrendPointOrNull) {
+        if (previousTrendPointOrNull == null) {
+            return null;
+        }
+
+        return previousTrendPointOrNull.getExportCount();
+    }
+
+    private static Double readPreviousGoalCompletionRatePercentOrNull(
+        OperationsTrendPointDto previousTrendPointOrNull
+    ) {
+        if (previousTrendPointOrNull == null) {
+            return null;
+        }
+
+        return previousTrendPointOrNull.getGoalCompletionRatePercent();
     }
 }

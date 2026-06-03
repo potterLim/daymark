@@ -89,6 +89,10 @@ public final class MorningFormDto {
     }
 
     private static int calculateLength(String textOrNull) {
-        return textOrNull == null ? 0 : textOrNull.length();
+        if (textOrNull == null) {
+            return 0;
+        }
+
+        return textOrNull.length();
     }
 }

@@ -72,9 +72,7 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
             totalGoalCount += libraryItem.getTotalGoalCount();
         }
 
-        int averageGoalCompletionPercent = totalGoalCount == 0
-            ? 0
-            : (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
+        int averageGoalCompletionPercent = calculateCompletionPercent(achievedGoalCount, totalGoalCount);
         List<DaymarkLibraryItemDto> trendItems = buildTrendItems(matchingItemsAscending);
         LocalDate calendarMonthDate = searchCriteria.getEndDate().withDayOfMonth(1);
         List<DaymarkLibraryCalendarDayDto> calendarDays = buildCalendarDays(
@@ -168,7 +166,7 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
         Set<String> completedGoalTexts = buildCompletedGoalTextSet(daymarkEntry);
         int totalGoalCount = goalLines.size();
         int achievedGoalCount = countAchievedGoals(goalLines, completedGoalTexts);
-        int completionPercent = totalGoalCount == 0 ? 0 : (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
+        int completionPercent = calculateCompletionPercent(achievedGoalCount, totalGoalCount);
         String markdownText = daymarkEntry.buildMarkdownText();
 
         return new DaymarkLibraryItemDto(
@@ -219,11 +217,15 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
         LocalDate cursorDate = firstCalendarDate;
         while (!cursorDate.isAfter(lastCalendarDate)) {
             DaymarkLibraryItemDto libraryItemOrNull = libraryItemByDate.get(cursorDate);
+            int completionPercent = 0;
+            if (libraryItemOrNull != null) {
+                completionPercent = libraryItemOrNull.getCompletionPercent();
+            }
             calendarDays.add(new DaymarkLibraryCalendarDayDto(
                 cursorDate,
                 YearMonth.from(cursorDate).equals(yearMonth),
                 libraryItemOrNull != null,
-                libraryItemOrNull == null ? 0 : libraryItemOrNull.getCompletionPercent(),
+                completionPercent,
                 cursorDate.equals(today)
             ));
             cursorDate = cursorDate.plusDays(1L);
@@ -393,6 +395,14 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
         }
 
         return textOrNull.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static int calculateCompletionPercent(int achievedGoalCount, int totalGoalCount) {
+        if (totalGoalCount == 0) {
+            return 0;
+        }
+
+        return (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
     }
 
     private static List<String> splitContentLines(String textOrNull) {

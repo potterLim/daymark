@@ -157,8 +157,7 @@ public class UserAccountService implements IUserAccountService {
 
         String normalizedEmailAddress = normalizeEmailAddress(emailAddressOrNull);
         String normalizedGoogleSubject = googleSubjectOrNull.trim();
-        Optional<UserAccount> existingGoogleUserAccountOrEmpty =
-            mUserAccountRepository.findByGoogleSubject(normalizedGoogleSubject);
+        Optional<UserAccount> existingGoogleUserAccountOrEmpty = mUserAccountRepository.findByGoogleSubject(normalizedGoogleSubject);
         if (existingGoogleUserAccountOrEmpty.isPresent()) {
             return existingGoogleUserAccountOrEmpty;
         }

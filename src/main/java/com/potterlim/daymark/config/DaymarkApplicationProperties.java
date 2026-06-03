@@ -57,9 +57,12 @@ public class DaymarkApplicationProperties {
         }
 
         public void setAdministratorWorkspaceIds(List<String> administratorWorkspaceIds) {
-            mAdministratorWorkspaceIds = administratorWorkspaceIds == null
-                ? new ArrayList<>()
-                : administratorWorkspaceIds;
+            if (administratorWorkspaceIds == null) {
+                mAdministratorWorkspaceIds = new ArrayList<>();
+                return;
+            }
+
+            mAdministratorWorkspaceIds = administratorWorkspaceIds;
         }
 
         public ProductionReadinessProperties getProductionReadiness() {

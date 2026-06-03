@@ -60,8 +60,7 @@ public class DaymarkLibraryController {
             endDateOrNull,
             keywordOrNull
         );
-        DaymarkLibraryViewDto libraryViewDto =
-            mDaymarkLibraryService.searchLibrary(searchCriteria, userAccount.getUserAccountId());
+        DaymarkLibraryViewDto libraryViewDto = mDaymarkLibraryService.searchLibrary(searchCriteria, userAccount.getUserAccountId());
 
         mOperationUsageEventService.recordUserEvent(EOperationEventType.RECORD_LIBRARY_VIEWED, userAccount.getUserAccountId());
         model.addAttribute("libraryViewDto", libraryViewDto);
@@ -116,8 +115,7 @@ public class DaymarkLibraryController {
             endDateOrNull,
             keywordOrNull
         );
-        DaymarkLibraryViewDto libraryViewDto =
-            mDaymarkLibraryService.searchLibrary(searchCriteria, userAccount.getUserAccountId());
+        DaymarkLibraryViewDto libraryViewDto = mDaymarkLibraryService.searchLibrary(searchCriteria, userAccount.getUserAccountId());
 
         mOperationUsageEventService.recordUserEvent(EOperationEventType.PDF_EXPORT_VIEWED, userAccount.getUserAccountId());
         model.addAttribute("libraryViewDto", libraryViewDto);

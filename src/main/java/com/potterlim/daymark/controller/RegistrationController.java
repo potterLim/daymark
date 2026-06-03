@@ -66,8 +66,7 @@ public class RegistrationController {
         Model model,
         RedirectAttributes redirectAttributes
     ) {
-        GoogleRegistrationSession googleRegistrationSessionOrNull =
-            findPendingGoogleRegistrationSessionOrNull(httpServletRequest);
+        GoogleRegistrationSession googleRegistrationSessionOrNull = findPendingGoogleRegistrationSessionOrNull(httpServletRequest);
         if (googleRegistrationSessionOrNull == null) {
             return "redirect:/register";
         }
@@ -132,8 +131,7 @@ public class RegistrationController {
     }
 
     private static void prepareRegisterModel(HttpServletRequest httpServletRequest, Model model) {
-        GoogleRegistrationSession googleRegistrationSessionOrNull =
-            findPendingGoogleRegistrationSessionOrNull(httpServletRequest);
+        GoogleRegistrationSession googleRegistrationSessionOrNull = findPendingGoogleRegistrationSessionOrNull(httpServletRequest);
         model.addAttribute("hasPendingGoogleRegistration", googleRegistrationSessionOrNull != null);
         if (googleRegistrationSessionOrNull == null) {
             return;

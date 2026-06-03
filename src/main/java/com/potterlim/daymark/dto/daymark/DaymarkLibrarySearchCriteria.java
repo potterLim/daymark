@@ -26,9 +26,15 @@ public final class DaymarkLibrarySearchCriteria {
             throw new IllegalArgumentException("referenceDate must not be null.");
         }
 
-        LocalDate resolvedEndDate = endDateOrNull == null ? referenceDate : endDateOrNull;
-        LocalDate resolvedStartDate =
-            startDateOrNull == null ? resolvedEndDate.minusDays(DEFAULT_LOOKBACK_DAYS) : startDateOrNull;
+        LocalDate resolvedEndDate = referenceDate;
+        if (endDateOrNull != null) {
+            resolvedEndDate = endDateOrNull;
+        }
+
+        LocalDate resolvedStartDate = resolvedEndDate.minusDays(DEFAULT_LOOKBACK_DAYS);
+        if (startDateOrNull != null) {
+            resolvedStartDate = startDateOrNull;
+        }
 
         if (resolvedStartDate.isAfter(resolvedEndDate)) {
             LocalDate previousStartDate = resolvedStartDate;

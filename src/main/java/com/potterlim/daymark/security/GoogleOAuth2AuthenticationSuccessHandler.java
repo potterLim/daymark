@@ -101,7 +101,11 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
 
     private static String readString(Map<String, Object> attributes, String key) {
         Object valueOrNull = attributes.get(key);
-        return valueOrNull == null ? "" : valueOrNull.toString().trim();
+        if (valueOrNull == null) {
+            return "";
+        }
+
+        return valueOrNull.toString().trim();
     }
 
     private record GoogleIdentity(

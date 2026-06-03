@@ -52,13 +52,20 @@ public class DaymarkRecordViewService {
 
         StringJoiner stringJoiner = new StringJoiner("\r\n");
         for (EveningGoalItemDto eveningGoalItemDto : goalItemsOrNull) {
-            String goalText = eveningGoalItemDto.getText() == null ? "" : eveningGoalItemDto.getText().trim();
+            String goalText = "";
+            if (eveningGoalItemDto.getText() != null) {
+                goalText = eveningGoalItemDto.getText().trim();
+            }
 
             if (goalText.isEmpty()) {
                 continue;
             }
 
-            stringJoiner.add("- [" + (eveningGoalItemDto.isDone() ? "x" : " ") + "] " + goalText);
+            String checkedMarker = " ";
+            if (eveningGoalItemDto.isDone()) {
+                checkedMarker = "x";
+            }
+            stringJoiner.add("- [" + checkedMarker + "] " + goalText);
         }
 
         return stringJoiner.toString();

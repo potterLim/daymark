@@ -24,7 +24,10 @@ public class ExternalBrowserRequiredController {
         HttpServletRequest httpServletRequest,
         Model model
     ) {
-        String returnPath = isAllowedReturnPath(returnPathOrNull) ? returnPathOrNull : DEFAULT_RETURN_PATH;
+        String returnPath = DEFAULT_RETURN_PATH;
+        if (isAllowedReturnPath(returnPathOrNull)) {
+            returnPath = returnPathOrNull;
+        }
         model.addAttribute("externalBrowserCopyUrl", resolvePublicBaseUrl(httpServletRequest) + returnPath);
         model.addAttribute("externalBrowserReturnPath", returnPath);
         return "auth/external-browser-required";
@@ -42,7 +45,11 @@ public class ExternalBrowserRequiredController {
         boolean isDefaultPort = ("http".equals(scheme) && port == 80)
             || ("https".equals(scheme) && port == 443);
 
-        return isDefaultPort ? scheme + "://" + host : scheme + "://" + host + ":" + port;
+        if (isDefaultPort) {
+            return scheme + "://" + host;
+        }
+
+        return scheme + "://" + host + ":" + port;
     }
 
     private static boolean isAllowedReturnPath(String pathOrNull) {

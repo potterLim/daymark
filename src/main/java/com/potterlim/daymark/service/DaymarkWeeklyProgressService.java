@@ -32,8 +32,7 @@ public class DaymarkWeeklyProgressService {
         LocalDate currentDate = LocalDate.now(mClock);
         LocalDate referenceDate = currentDate.plusDays((long) weekOffset * 7L);
         LocalDate startDate = resolveWeekStartDate(referenceDate);
-        WeeklyProgressAccumulator weeklyProgressAccumulator =
-            buildWeeklyProgressAccumulator(referenceDate, userAccountId);
+        WeeklyProgressAccumulator weeklyProgressAccumulator = buildWeeklyProgressAccumulator(referenceDate, userAccountId);
 
         return new WeeklyProgressViewDto(
             weeklyProgressAccumulator.getWeeklyProgressItems(),
@@ -87,8 +86,7 @@ public class DaymarkWeeklyProgressService {
             return 0;
         }
 
-        Set<String> checkedGoalTexts =
-            new HashSet<>(mDaymarkService.readCheckedGoalTexts(daymarkDayStatusDto.getDate(), userAccountId));
+        Set<String> checkedGoalTexts = new HashSet<>(mDaymarkService.readCheckedGoalTexts(daymarkDayStatusDto.getDate(), userAccountId));
         int achievedGoalCount = 0;
         for (String goal : goals) {
             if (checkedGoalTexts.contains(goal)) {
@@ -100,9 +98,11 @@ public class DaymarkWeeklyProgressService {
     }
 
     private static int calculateCompletionPercent(int achievedGoalCount, int totalGoalCount) {
-        return totalGoalCount == 0
-            ? 0
-            : (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
+        if (totalGoalCount == 0) {
+            return 0;
+        }
+
+        return (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
     }
 
     private static LocalDate resolveWeekStartDate(LocalDate referenceDate) {

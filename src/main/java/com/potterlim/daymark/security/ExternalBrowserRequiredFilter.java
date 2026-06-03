@@ -48,7 +48,11 @@ public class ExternalBrowserRequiredFilter extends OncePerRequestFilter {
         try {
             URI refererUri = URI.create(refererOrNull);
             String path = refererUri.getPath();
-            return isAllowedReturnPath(path) ? path : DEFAULT_RETURN_PATH;
+            if (isAllowedReturnPath(path)) {
+                return path;
+            }
+
+            return DEFAULT_RETURN_PATH;
         } catch (IllegalArgumentException illegalArgumentException) {
             return DEFAULT_RETURN_PATH;
         }

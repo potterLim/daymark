@@ -111,21 +111,27 @@ public class WeeklyOperationsSummaryService {
         );
         long newWorkspaceActivatedUsers = newWorkspaceActivatedUserIds.size();
 
-        double averageWritingDaysPerActiveUser = weeklyActiveUsers == 0
-            ? 0.0
-            : (double) weeklyWritingDays / weeklyActiveUsers;
-        double averageEntryCompletionsPerActiveUser = weeklyActiveUsers == 0
-            ? 0.0
-            : (double) (weeklyMorningEntries + weeklyEveningEntries) / weeklyActiveUsers;
-        double planReviewConversionRatePercent = weeklyMorningEntries == 0L
-            ? 0.0
-            : (double) weeklyPlanReviewCompletedDays * 100.0 / weeklyMorningEntries;
-        double newWorkspaceActivationRatePercent = newlyRegisteredUsers == 0L
-            ? 0.0
-            : (double) newWorkspaceActivatedUsers * 100.0 / newlyRegisteredUsers;
-        double goalCompletionRatePercent = totalTrackedGoals == 0
-            ? 0.0
-            : (double) completedTrackedGoals * 100.0 / totalTrackedGoals;
+        double averageWritingDaysPerActiveUser = 0.0;
+        double averageEntryCompletionsPerActiveUser = 0.0;
+        if (weeklyActiveUsers > 0L) {
+            averageWritingDaysPerActiveUser = (double) weeklyWritingDays / weeklyActiveUsers;
+            averageEntryCompletionsPerActiveUser = (double) (weeklyMorningEntries + weeklyEveningEntries) / weeklyActiveUsers;
+        }
+
+        double planReviewConversionRatePercent = 0.0;
+        if (weeklyMorningEntries > 0L) {
+            planReviewConversionRatePercent = (double) weeklyPlanReviewCompletedDays * 100.0 / weeklyMorningEntries;
+        }
+
+        double newWorkspaceActivationRatePercent = 0.0;
+        if (newlyRegisteredUsers > 0L) {
+            newWorkspaceActivationRatePercent = (double) newWorkspaceActivatedUsers * 100.0 / newlyRegisteredUsers;
+        }
+
+        double goalCompletionRatePercent = 0.0;
+        if (totalTrackedGoals > 0) {
+            goalCompletionRatePercent = (double) completedTrackedGoals * 100.0 / totalTrackedGoals;
+        }
 
         return new WeeklyOperationsSummary(
             weekStartDate,
