@@ -14,7 +14,7 @@ public final class DaymarkLibraryViewDto {
     private final int mEveningEntryCount;
     private final int mAchievedGoalCount;
     private final int mTotalGoalCount;
-    private final int mAverageCompletionPercent;
+    private final int mAverageGoalCompletionPercent;
 
     public DaymarkLibraryViewDto(
         DaymarkLibrarySearchCriteria searchCriteria,
@@ -26,7 +26,7 @@ public final class DaymarkLibraryViewDto {
         int eveningEntryCount,
         int achievedGoalCount,
         int totalGoalCount,
-        int averageCompletionPercent
+        int averageGoalCompletionPercent
     ) {
         mSearchCriteria = searchCriteria;
         mItems = List.copyOf(items);
@@ -37,7 +37,7 @@ public final class DaymarkLibraryViewDto {
         mEveningEntryCount = eveningEntryCount;
         mAchievedGoalCount = achievedGoalCount;
         mTotalGoalCount = totalGoalCount;
-        mAverageCompletionPercent = averageCompletionPercent;
+        mAverageGoalCompletionPercent = averageGoalCompletionPercent;
     }
 
     public DaymarkLibrarySearchCriteria getSearchCriteria() {
@@ -80,8 +80,8 @@ public final class DaymarkLibraryViewDto {
         return mTotalGoalCount;
     }
 
-    public int getAverageCompletionPercent() {
-        return mAverageCompletionPercent;
+    public int getAverageGoalCompletionPercent() {
+        return mAverageGoalCompletionPercent;
     }
 
     public boolean hasEntries() {

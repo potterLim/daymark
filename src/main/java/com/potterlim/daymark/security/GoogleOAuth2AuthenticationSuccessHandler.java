@@ -124,14 +124,14 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
         try {
             URI redirectUri = URI.create(redirectUrl);
             String redirectPath = redirectUri.getRawPath();
-            String redirectQuery = removeInternalSavedRequestQueryParameter(redirectUri.getRawQuery());
+            String redirectQueryOrNull = removeInternalSavedRequestQueryParameterOrNull(redirectUri.getRawQuery());
             if (!isAllowedPostLoginRedirectPath(redirectPath)) {
                 return "/";
             }
 
-            return redirectQuery == null || redirectQuery.isBlank()
+            return redirectQueryOrNull == null || redirectQueryOrNull.isBlank()
                 ? redirectPath
-                : redirectPath + "?" + redirectQuery;
+                : redirectPath + "?" + redirectQueryOrNull;
         } catch (IllegalArgumentException illegalArgumentException) {
             return "/";
         }
@@ -157,7 +157,7 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
         return valueOrNull == null ? "" : valueOrNull.toString().trim();
     }
 
-    private static String removeInternalSavedRequestQueryParameter(String rawQueryOrNull) {
+    private static String removeInternalSavedRequestQueryParameterOrNull(String rawQueryOrNull) {
         if (rawQueryOrNull == null || rawQueryOrNull.isBlank()) {
             return null;
         }

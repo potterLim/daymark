@@ -5,30 +5,35 @@ import java.time.LocalDate;
 public final class WeeklyProgressItemDto {
 
     private final LocalDate mDate;
-    private final int mAchieved;
-    private final int mTotal;
-    private final int mPercent;
+    private final int mAchievedGoalCount;
+    private final int mTotalGoalCount;
+    private final int mCompletionPercent;
 
-    public WeeklyProgressItemDto(LocalDate date, int achieved, int total, int percent) {
+    public WeeklyProgressItemDto(
+        LocalDate date,
+        int achievedGoalCount,
+        int totalGoalCount,
+        int completionPercent
+    ) {
         mDate = date;
-        mAchieved = achieved;
-        mTotal = total;
-        mPercent = percent;
+        mAchievedGoalCount = achievedGoalCount;
+        mTotalGoalCount = totalGoalCount;
+        mCompletionPercent = completionPercent;
     }
 
     public LocalDate getDate() {
         return mDate;
     }
 
-    public int getAchieved() {
-        return mAchieved;
+    public int getAchievedGoalCount() {
+        return mAchievedGoalCount;
     }
 
-    public int getTotal() {
-        return mTotal;
+    public int getTotalGoalCount() {
+        return mTotalGoalCount;
     }
 
-    public int getPercent() {
-        return mPercent;
+    public int getCompletionPercent() {
+        return mCompletionPercent;
     }
 }

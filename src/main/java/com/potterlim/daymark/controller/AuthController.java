@@ -152,7 +152,8 @@ public class AuthController {
         Model model,
         RedirectAttributes redirectAttributes
     ) {
-        GoogleRegistrationSession googleRegistrationSessionOrNull = getPendingGoogleRegistrationSession(httpServletRequest);
+        GoogleRegistrationSession googleRegistrationSessionOrNull =
+            findPendingGoogleRegistrationSessionOrNull(httpServletRequest);
         if (googleRegistrationSessionOrNull == null) {
             return "redirect:/register";
         }
@@ -297,20 +298,20 @@ public class AuthController {
         try {
             URI redirectUri = URI.create(redirectUrl);
             String redirectPath = redirectUri.getRawPath();
-            String redirectQuery = removeInternalSavedRequestQueryParameter(redirectUri.getRawQuery());
+            String redirectQueryOrNull = removeInternalSavedRequestQueryParameterOrNull(redirectUri.getRawQuery());
             if (!isAllowedPostLoginRedirectPath(redirectPath)) {
                 return "/";
             }
 
-            return redirectQuery == null || redirectQuery.isBlank()
+            return redirectQueryOrNull == null || redirectQueryOrNull.isBlank()
                 ? redirectPath
-                : redirectPath + "?" + redirectQuery;
+                : redirectPath + "?" + redirectQueryOrNull;
         } catch (IllegalArgumentException illegalArgumentException) {
             return "/";
         }
     }
 
-    private static String removeInternalSavedRequestQueryParameter(String rawQueryOrNull) {
+    private static String removeInternalSavedRequestQueryParameterOrNull(String rawQueryOrNull) {
         if (rawQueryOrNull == null || rawQueryOrNull.isBlank()) {
             return null;
         }
@@ -358,7 +359,8 @@ public class AuthController {
     }
 
     private static void prepareRegisterModel(HttpServletRequest httpServletRequest, Model model) {
-        GoogleRegistrationSession googleRegistrationSessionOrNull = getPendingGoogleRegistrationSession(httpServletRequest);
+        GoogleRegistrationSession googleRegistrationSessionOrNull =
+            findPendingGoogleRegistrationSessionOrNull(httpServletRequest);
         model.addAttribute("hasPendingGoogleRegistration", googleRegistrationSessionOrNull != null);
         if (googleRegistrationSessionOrNull == null) {
             return;
@@ -368,7 +370,9 @@ public class AuthController {
         model.addAttribute("googleDisplayName", googleRegistrationSessionOrNull.displayName());
     }
 
-    private static GoogleRegistrationSession getPendingGoogleRegistrationSession(HttpServletRequest httpServletRequest) {
+    private static GoogleRegistrationSession findPendingGoogleRegistrationSessionOrNull(
+        HttpServletRequest httpServletRequest
+    ) {
         Object sessionValueOrNull = httpServletRequest.getSession(true)
             .getAttribute(GoogleRegistrationSession.SESSION_ATTRIBUTE_NAME);
         if (sessionValueOrNull instanceof GoogleRegistrationSession googleRegistrationSession) {

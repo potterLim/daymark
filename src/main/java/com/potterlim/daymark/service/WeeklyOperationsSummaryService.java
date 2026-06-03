@@ -204,14 +204,14 @@ public class WeeklyOperationsSummaryService {
             && createdAtOrNull.isBefore(endExclusiveDateTime);
     }
 
-    private static GoalCompletionAccumulator analyzeGoalCompletion(String eveningGoalsText) {
+    private static GoalCompletionAccumulator analyzeGoalCompletion(String eveningGoalsTextOrNull) {
         GoalCompletionAccumulator goalCompletionAccumulator = new GoalCompletionAccumulator();
 
-        if (eveningGoalsText == null || eveningGoalsText.isBlank()) {
+        if (eveningGoalsTextOrNull == null || eveningGoalsTextOrNull.isBlank()) {
             return goalCompletionAccumulator;
         }
 
-        for (String line : splitLines(eveningGoalsText)) {
+        for (String line : splitLines(eveningGoalsTextOrNull)) {
             String trimmedLine = line.trim();
             if (trimmedLine.startsWith("- [x]") || trimmedLine.startsWith("- [X]")) {
                 goalCompletionAccumulator.incrementCompletedGoals();
@@ -239,20 +239,20 @@ public class WeeklyOperationsSummaryService {
         private int mTotalGoals;
         private int mCompletedGoals;
 
-        public int getTotalGoals() {
+        private int getTotalGoals() {
             return mTotalGoals;
         }
 
-        public int getCompletedGoals() {
+        private int getCompletedGoals() {
             return mCompletedGoals;
         }
 
-        public void incrementCompletedGoals() {
+        private void incrementCompletedGoals() {
             mTotalGoals += 1;
             mCompletedGoals += 1;
         }
 
-        public void incrementPendingGoals() {
+        private void incrementPendingGoals() {
             mTotalGoals += 1;
         }
     }

@@ -236,16 +236,16 @@ public class DaymarkController {
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.WEEKLY_REVIEW_VIEWED, userAccountId);
         List<WeeklyProgressItemDto> weeklyProgressItems = new ArrayList<>();
-        int weekAchieved = 0;
-        int weekTotal = 0;
+        int weeklyAchievedGoalCount = 0;
+        int weeklyTotalGoalCount = 0;
 
         for (DaymarkDayStatusDto daymarkDayStatusDto : mDaymarkService.listWeek(referenceDate, userAccountId)) {
             List<String> goals = splitNonBlankLines(
                 mDaymarkService.readSection(daymarkDayStatusDto.getDate(), userAccountId, EDaymarkSectionType.GOALS)
             );
 
-            int total = goals.size();
-            int achieved = 0;
+            int dailyTotalGoalCount = goals.size();
+            int dailyAchievedGoalCount = 0;
 
             if (daymarkDayStatusDto.hasEveningEntry()) {
                 Set<String> checkedGoalTexts =
@@ -253,23 +253,32 @@ public class DaymarkController {
 
                 for (String goal : goals) {
                     if (checkedGoalTexts.contains(goal)) {
-                        achieved++;
+                        dailyAchievedGoalCount++;
                     }
                 }
             }
 
-            int percent = total == 0 ? 0 : (int) ((achieved / (double) total) * 100);
-            weeklyProgressItems.add(new WeeklyProgressItemDto(daymarkDayStatusDto.getDate(), achieved, total, percent));
-            weekAchieved += achieved;
-            weekTotal += total;
+            int dailyCompletionPercent = dailyTotalGoalCount == 0
+                ? 0
+                : (int) ((dailyAchievedGoalCount / (double) dailyTotalGoalCount) * 100);
+            weeklyProgressItems.add(new WeeklyProgressItemDto(
+                daymarkDayStatusDto.getDate(),
+                dailyAchievedGoalCount,
+                dailyTotalGoalCount,
+                dailyCompletionPercent
+            ));
+            weeklyAchievedGoalCount += dailyAchievedGoalCount;
+            weeklyTotalGoalCount += dailyTotalGoalCount;
         }
 
-        int weekPercent = weekTotal == 0 ? 0 : (int) ((weekAchieved / (double) weekTotal) * 100);
+        int weeklyCompletionPercent = weeklyTotalGoalCount == 0
+            ? 0
+            : (int) ((weeklyAchievedGoalCount / (double) weeklyTotalGoalCount) * 100);
 
         model.addAttribute("weeklyProgressItems", weeklyProgressItems);
-        model.addAttribute("weekAchieved", weekAchieved);
-        model.addAttribute("weekTotal", weekTotal);
-        model.addAttribute("weekPercent", weekPercent);
+        model.addAttribute("weekAchieved", weeklyAchievedGoalCount);
+        model.addAttribute("weekTotal", weeklyTotalGoalCount);
+        model.addAttribute("weekPercent", weeklyCompletionPercent);
         model.addAttribute("weekOffset", weekOffset);
         model.addAttribute("previousWeekOffset", weekOffset - 1);
         model.addAttribute("nextWeekOffset", weekOffset + 1);
@@ -438,13 +447,13 @@ public class DaymarkController {
         return DaymarkLibrarySearchCriteria.create(startDateOrNull, endDateOrNull, keywordOrNull, LocalDate.now(mClock));
     }
 
-    private static String buildLibraryExportFileName(DaymarkLibrarySearchCriteria searchCriteria, String extension) {
+    private static String buildLibraryExportFileName(DaymarkLibrarySearchCriteria searchCriteria, String fileExtension) {
         return "daymark-records-"
             + searchCriteria.getStartDate()
             + "-"
             + searchCriteria.getEndDate()
             + "."
-            + extension;
+            + fileExtension;
     }
 
     private Map<LocalDate, String> buildExportItemHtmlByDate(List<DaymarkLibraryItemDto> libraryItems) {

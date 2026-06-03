@@ -158,8 +158,8 @@ public class DaymarkEntry {
         };
     }
 
-    public void writeSection(EDaymarkSectionType daymarkSectionType, String normalizedBody) {
-        String safeBody = normalizedBody == null ? "" : normalizedBody;
+    public void writeSection(EDaymarkSectionType daymarkSectionType, String normalizedBodyOrNull) {
+        String safeBody = normalizedBodyOrNull == null ? "" : normalizedBodyOrNull;
 
         switch (daymarkSectionType) {
             case GOALS -> {

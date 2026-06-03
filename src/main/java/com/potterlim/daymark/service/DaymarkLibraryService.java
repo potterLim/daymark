@@ -31,10 +31,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DaymarkLibraryService implements IDaymarkLibraryService {
 
-    private static final int MAX_EXCERPT_LENGTH = 96;
+    private static final int MAX_EXCERPT_CHARACTER_COUNT = 96;
     private static final int MAX_GOAL_PREVIEW_COUNT = 3;
     private static final int MAX_CONTENT_BLOCK_LINE_COUNT = 2;
-    private static final int TREND_ITEM_LIMIT = 14;
+    private static final int MAX_TREND_ITEM_COUNT = 14;
     private static final DateTimeFormatter DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy. MM. dd.");
 
     private final IDaymarkEntryRepository mDaymarkEntryRepository;
@@ -72,7 +72,9 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
             totalGoalCount += libraryItem.getTotalGoalCount();
         }
 
-        int averageCompletionPercent = totalGoalCount == 0 ? 0 : (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
+        int averageGoalCompletionPercent = totalGoalCount == 0
+            ? 0
+            : (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
         List<DaymarkLibraryItemDto> trendItems = buildTrendItems(matchingItemsAscending);
         LocalDate calendarMonthDate = searchCriteria.getEndDate().withDayOfMonth(1);
         List<DaymarkLibraryCalendarDayDto> calendarDays = buildCalendarDays(
@@ -91,7 +93,7 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
             eveningEntryCount,
             achievedGoalCount,
             totalGoalCount,
-            averageCompletionPercent
+            averageGoalCompletionPercent
         );
     }
 
@@ -185,11 +187,11 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
     }
 
     private static List<DaymarkLibraryItemDto> buildTrendItems(List<DaymarkLibraryItemDto> matchingItemsAscending) {
-        if (matchingItemsAscending.size() <= TREND_ITEM_LIMIT) {
+        if (matchingItemsAscending.size() <= MAX_TREND_ITEM_COUNT) {
             return List.copyOf(matchingItemsAscending);
         }
 
-        int fromIndex = matchingItemsAscending.size() - TREND_ITEM_LIMIT;
+        int fromIndex = matchingItemsAscending.size() - MAX_TREND_ITEM_COUNT;
         return List.copyOf(matchingItemsAscending.subList(fromIndex, matchingItemsAscending.size()));
     }
 
@@ -378,11 +380,11 @@ public class DaymarkLibraryService implements IDaymarkLibraryService {
     }
 
     private static String abbreviate(String text) {
-        if (text.length() <= MAX_EXCERPT_LENGTH) {
+        if (text.length() <= MAX_EXCERPT_CHARACTER_COUNT) {
             return text;
         }
 
-        return text.substring(0, MAX_EXCERPT_LENGTH - 1).stripTrailing() + "…";
+        return text.substring(0, MAX_EXCERPT_CHARACTER_COUNT - 1).stripTrailing() + "…";
     }
 
     private static String normalizeComparableGoalText(String textOrNull) {

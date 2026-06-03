@@ -81,19 +81,22 @@
                 <div>
                     <h2 th:text="${#temporals.format(progressItem.date, 'yyyy. MM. dd.')}">2026. 04. 01.</h2>
                 </div>
-                <div class="progress-percent-badge" th:text="${progressItem.percent} + '%'">0%</div>
+                <div class="progress-percent-badge" th:text="${progressItem.completionPercent} + '%'">0%</div>
             </div>
 
             <div class="progress-track-shell">
                 <div class="progress-track">
                     <div class="progress-bar-fill"
-                         th:style="'width: ' + ${progressItem.percent} + '%;'">
+                         th:style="'width: ' + ${progressItem.completionPercent} + '%;'">
                     </div>
                 </div>
             </div>
 
             <div class="progress-card-meta">
-                <span class="progress-pill" th:text="${progressItem.achieved} + ' / ' + ${progressItem.total} + ' 완료'">0 / 0 완료</span>
+                <span class="progress-pill"
+                      th:text="${progressItem.achievedGoalCount} + ' / ' + ${progressItem.totalGoalCount} + ' 완료'">
+                    0 / 0 완료
+                </span>
                 <a th:href="@{/daymark/preview(date=${#temporals.format(progressItem.date, 'yyyy-MM-dd')})}"
                    class="btn btn-outline-secondary btn-sm">
                     View Record
