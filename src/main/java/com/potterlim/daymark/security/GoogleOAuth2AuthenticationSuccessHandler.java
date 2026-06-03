@@ -1,7 +1,6 @@
 package com.potterlim.daymark.security;
 
 import java.io.IOException;
-import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
 import com.potterlim.daymark.dto.auth.GoogleRegistrationSession;
@@ -13,14 +12,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.context.SecurityContextRepository;
-import org.springframework.security.web.savedrequest.RequestCache;
-import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,19 +21,19 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
 
     private final IUserAccountService mUserAccountService;
     private final OperationUsageEventService mOperationUsageEventService;
-    private final SecurityContextRepository mSecurityContextRepository;
-    private final RequestCache mRequestCache;
+    private final ApplicationAuthenticationService mApplicationAuthenticationService;
+    private final PostLoginRedirectPathResolver mPostLoginRedirectPathResolver;
 
     public GoogleOAuth2AuthenticationSuccessHandler(
         IUserAccountService userAccountService,
         OperationUsageEventService operationUsageEventService,
-        SecurityContextRepository securityContextRepository,
-        RequestCache requestCache
+        ApplicationAuthenticationService applicationAuthenticationService,
+        PostLoginRedirectPathResolver postLoginRedirectPathResolver
     ) {
         mUserAccountService = userAccountService;
         mOperationUsageEventService = operationUsageEventService;
-        mSecurityContextRepository = securityContextRepository;
-        mRequestCache = requestCache;
+        mApplicationAuthenticationService = applicationAuthenticationService;
+        mPostLoginRedirectPathResolver = postLoginRedirectPathResolver;
     }
 
     @Override
@@ -51,7 +44,7 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
     ) throws IOException, ServletException {
         GoogleIdentity googleIdentity = resolveGoogleIdentity(authentication);
         if (!googleIdentity.isUsable()) {
-            clearSecurityContext(httpServletRequest, httpServletResponse);
+            mApplicationAuthenticationService.clearAuthentication(httpServletRequest, httpServletResponse);
             httpServletResponse.sendRedirect("/login?google=unverified");
             return;
         }
@@ -63,16 +56,23 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
                     googleIdentity.subject()
                 ));
         if (userAccountOrEmpty.isPresent()) {
-            authenticateApplicationUser(userAccountOrEmpty.get(), httpServletRequest, httpServletResponse);
+            mApplicationAuthenticationService.authenticateUserAccount(
+                userAccountOrEmpty.get(),
+                httpServletRequest,
+                httpServletResponse
+            );
             mOperationUsageEventService.recordUserEvent(
                 EOperationEventType.SIGN_IN_SUCCEEDED,
                 userAccountOrEmpty.get().getUserAccountId()
             );
-            httpServletResponse.sendRedirect(resolveSavedRequestRedirectPath(httpServletRequest, httpServletResponse));
+            httpServletResponse.sendRedirect(mPostLoginRedirectPathResolver.resolveSavedRequestRedirectPath(
+                httpServletRequest,
+                httpServletResponse
+            ));
             return;
         }
 
-        clearSecurityContext(httpServletRequest, httpServletResponse);
+        mApplicationAuthenticationService.clearAuthentication(httpServletRequest, httpServletResponse);
         httpServletRequest.getSession(true).setAttribute(
             GoogleRegistrationSession.SESSION_ATTRIBUTE_NAME,
             new GoogleRegistrationSession(
@@ -82,59 +82,6 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
             )
         );
         httpServletResponse.sendRedirect("/register");
-    }
-
-    private void authenticateApplicationUser(
-        UserAccount userAccount,
-        HttpServletRequest httpServletRequest,
-        HttpServletResponse httpServletResponse
-    ) {
-        Authentication applicationAuthentication =
-            new UsernamePasswordAuthenticationToken(userAccount, userAccount.getPassword(), userAccount.getAuthorities());
-        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
-        securityContext.setAuthentication(applicationAuthentication);
-        SecurityContextHolder.setContext(securityContext);
-        mSecurityContextRepository.saveContext(securityContext, httpServletRequest, httpServletResponse);
-    }
-
-    private void clearSecurityContext(
-        HttpServletRequest httpServletRequest,
-        HttpServletResponse httpServletResponse
-    ) {
-        SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
-        SecurityContextHolder.setContext(securityContext);
-        mSecurityContextRepository.saveContext(securityContext, httpServletRequest, httpServletResponse);
-    }
-
-    private String resolveSavedRequestRedirectPath(
-        HttpServletRequest httpServletRequest,
-        HttpServletResponse httpServletResponse
-    ) {
-        SavedRequest savedRequestOrNull = mRequestCache.getRequest(httpServletRequest, httpServletResponse);
-        if (savedRequestOrNull == null) {
-            return "/";
-        }
-
-        mRequestCache.removeRequest(httpServletRequest, httpServletResponse);
-        String redirectUrl = savedRequestOrNull.getRedirectUrl();
-        if (redirectUrl == null || redirectUrl.isBlank()) {
-            return "/";
-        }
-
-        try {
-            URI redirectUri = URI.create(redirectUrl);
-            String redirectPath = redirectUri.getRawPath();
-            String redirectQueryOrNull = removeInternalSavedRequestQueryParameterOrNull(redirectUri.getRawQuery());
-            if (!isAllowedPostLoginRedirectPath(redirectPath)) {
-                return "/";
-            }
-
-            return redirectQueryOrNull == null || redirectQueryOrNull.isBlank()
-                ? redirectPath
-                : redirectPath + "?" + redirectQueryOrNull;
-        } catch (IllegalArgumentException illegalArgumentException) {
-            return "/";
-        }
     }
 
     private static GoogleIdentity resolveGoogleIdentity(Authentication authentication) {
@@ -155,33 +102,6 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
     private static String readString(Map<String, Object> attributes, String key) {
         Object valueOrNull = attributes.get(key);
         return valueOrNull == null ? "" : valueOrNull.toString().trim();
-    }
-
-    private static String removeInternalSavedRequestQueryParameterOrNull(String rawQueryOrNull) {
-        if (rawQueryOrNull == null || rawQueryOrNull.isBlank()) {
-            return null;
-        }
-
-        StringBuilder queryBuilder = new StringBuilder();
-        for (String queryParameter : rawQueryOrNull.split("&")) {
-            if (queryParameter.equals("continue") || queryParameter.equals("continue=")) {
-                continue;
-            }
-
-            if (!queryBuilder.isEmpty()) {
-                queryBuilder.append('&');
-            }
-            queryBuilder.append(queryParameter);
-        }
-
-        return queryBuilder.isEmpty() ? null : queryBuilder.toString();
-    }
-
-    private static boolean isAllowedPostLoginRedirectPath(String redirectPathOrNull) {
-        return redirectPathOrNull != null
-            && (redirectPathOrNull.equals("/account")
-                || redirectPathOrNull.startsWith("/account/")
-                || redirectPathOrNull.startsWith("/daymark/"));
     }
 
     private record GoogleIdentity(
