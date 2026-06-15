@@ -2,6 +2,7 @@ package com.potterlim.daymark.service;
 
 import java.util.List;
 import com.potterlim.daymark.config.DaymarkApplicationProperties;
+import com.potterlim.daymark.identity.WorkspaceId;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,14 +14,13 @@ public class AdministratorWorkspaceIdPolicy {
         mDaymarkApplicationProperties = daymarkApplicationProperties;
     }
 
-    public boolean isAdministratorWorkspaceId(String workspaceIdOrNull) {
-        if (workspaceIdOrNull == null || workspaceIdOrNull.isBlank()) {
+    public boolean isAdministratorWorkspaceId(WorkspaceId workspaceIdOrNull) {
+        if (workspaceIdOrNull == null) {
             return false;
         }
 
-        String normalizedWorkspaceId = workspaceIdOrNull.trim();
-        for (String administratorWorkspaceId : listAdministratorWorkspaceIds()) {
-            if (administratorWorkspaceId.equalsIgnoreCase(normalizedWorkspaceId)) {
+        for (WorkspaceId administratorWorkspaceId : listAdministratorWorkspaceIds()) {
+            if (administratorWorkspaceId.getValue().equalsIgnoreCase(workspaceIdOrNull.getValue())) {
                 return true;
             }
         }
@@ -28,12 +28,13 @@ public class AdministratorWorkspaceIdPolicy {
         return false;
     }
 
-    public List<String> listAdministratorWorkspaceIds() {
+    public List<WorkspaceId> listAdministratorWorkspaceIds() {
         return mDaymarkApplicationProperties.getOperations().getAdministratorWorkspaceIds()
             .stream()
             .filter(administratorWorkspaceId -> administratorWorkspaceId != null && !administratorWorkspaceId.isBlank())
             .map(String::trim)
             .distinct()
+            .map(WorkspaceId::create)
             .toList();
     }
 }

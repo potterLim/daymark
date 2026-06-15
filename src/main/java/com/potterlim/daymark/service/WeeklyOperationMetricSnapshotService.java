@@ -1,11 +1,13 @@
 package com.potterlim.daymark.service;
 
 import java.time.Clock;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import com.potterlim.daymark.entity.WeeklyOperationMetricSnapshot;
 import com.potterlim.daymark.repository.IWeeklyOperationMetricSnapshotRepository;
+import com.potterlim.daymark.support.DaymarkDateRange;
+import com.potterlim.daymark.support.DaymarkWeekRange;
+import com.potterlim.daymark.support.WeeklyOperationsSummary;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -37,8 +39,10 @@ public class WeeklyOperationMetricSnapshotService {
                 weeklyOperationsSummary.getWeekEndDate()
             )
             .orElseGet(() -> WeeklyOperationMetricSnapshot.create(
-                weeklyOperationsSummary.getWeekStartDate(),
-                weeklyOperationsSummary.getWeekEndDate()
+                DaymarkWeekRange.of(
+                    weeklyOperationsSummary.getWeekStartDate(),
+                    weeklyOperationsSummary.getWeekEndDate()
+                )
             ));
 
         weeklyOperationMetricSnapshot.updateFrom(weeklyOperationsSummary, LocalDateTime.now(mClock));
@@ -46,23 +50,15 @@ public class WeeklyOperationMetricSnapshotService {
     }
 
     @Transactional(readOnly = true)
-    public List<WeeklyOperationMetricSnapshot> listWeeklySnapshotsWithinDateRange(
-        LocalDate startDate,
-        LocalDate endDate
-    ) {
-        if (startDate == null) {
-            throw new IllegalArgumentException("startDate must not be null.");
+    public List<WeeklyOperationMetricSnapshot> listWeeklySnapshotsWithinDateRange(DaymarkDateRange dateRange) {
+        if (dateRange == null) {
+            throw new IllegalArgumentException("dateRange must not be null.");
         }
 
-        if (endDate == null) {
-            throw new IllegalArgumentException("endDate must not be null.");
-        }
-
-        if (endDate.isBefore(startDate)) {
-            throw new IllegalArgumentException("endDate must not be before startDate.");
-        }
-
-        return mWeeklyOperationMetricSnapshotRepository.findWeeklySnapshotsWithinDateRange(startDate, endDate);
+        return mWeeklyOperationMetricSnapshotRepository.findWeeklySnapshotsWithinDateRange(
+            dateRange.getStartDate(),
+            dateRange.getEndDate()
+        );
     }
 
     @Transactional(readOnly = true)

@@ -1,8 +1,10 @@
 package com.potterlim.daymark.service;
 
+import com.potterlim.daymark.identity.WorkspaceId;
+
 public class DuplicateUserNameException extends RuntimeException {
 
-    public DuplicateUserNameException(String userName) {
-        super("Duplicate user name: " + userName);
+    public DuplicateUserNameException(WorkspaceId workspaceId) {
+        super("Duplicate workspace id: " + workspaceId.getValue());
     }
 }

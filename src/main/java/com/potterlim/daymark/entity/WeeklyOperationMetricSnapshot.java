@@ -2,7 +2,8 @@ package com.potterlim.daymark.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import com.potterlim.daymark.service.WeeklyOperationsSummary;
+import com.potterlim.daymark.support.WeeklyOperationsSummary;
+import com.potterlim.daymark.support.DaymarkWeekRange;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -109,21 +110,17 @@ public class WeeklyOperationMetricSnapshot {
     protected WeeklyOperationMetricSnapshot() {
     }
 
-    private WeeklyOperationMetricSnapshot(LocalDate weekStartDate, LocalDate weekEndDate) {
-        mWeekStartDate = weekStartDate;
-        mWeekEndDate = weekEndDate;
+    private WeeklyOperationMetricSnapshot(DaymarkWeekRange weekRange) {
+        mWeekStartDate = weekRange.getStartDate();
+        mWeekEndDate = weekRange.getEndDate();
     }
 
-    public static WeeklyOperationMetricSnapshot create(LocalDate weekStartDate, LocalDate weekEndDate) {
-        if (weekStartDate == null) {
-            throw new IllegalArgumentException("weekStartDate must not be null.");
+    public static WeeklyOperationMetricSnapshot create(DaymarkWeekRange weekRange) {
+        if (weekRange == null) {
+            throw new IllegalArgumentException("weekRange must not be null.");
         }
 
-        if (weekEndDate == null) {
-            throw new IllegalArgumentException("weekEndDate must not be null.");
-        }
-
-        return new WeeklyOperationMetricSnapshot(weekStartDate, weekEndDate);
+        return new WeeklyOperationMetricSnapshot(weekRange);
     }
 
     public void updateFrom(WeeklyOperationsSummary weeklyOperationsSummary, LocalDateTime generatedAt) {

@@ -2,8 +2,10 @@ package com.potterlim.daymark.entity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
+import com.potterlim.daymark.support.DaymarkEntryDate;
+import com.potterlim.daymark.support.DaymarkGoalMarkdown;
+import com.potterlim.daymark.support.DaymarkSectionText;
 import com.potterlim.daymark.support.EDaymarkSectionType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,20 +29,6 @@ import jakarta.persistence.UniqueConstraint;
     )
 )
 public class DaymarkEntry {
-
-    private static final List<EDaymarkSectionType> MORNING_SECTION_ORDER = List.of(
-        EDaymarkSectionType.GOALS,
-        EDaymarkSectionType.FOCUS,
-        EDaymarkSectionType.CHALLENGES
-    );
-
-    private static final List<EDaymarkSectionType> EVENING_SECTION_ORDER = List.of(
-        EDaymarkSectionType.EVENING_GOALS,
-        EDaymarkSectionType.ACHIEVEMENTS,
-        EDaymarkSectionType.IMPROVEMENTS,
-        EDaymarkSectionType.GRATITUDE,
-        EDaymarkSectionType.NOTES
-    );
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -93,9 +81,9 @@ public class DaymarkEntry {
     protected DaymarkEntry() {
     }
 
-    private DaymarkEntry(UserAccount userAccount, LocalDate entryDate) {
+    private DaymarkEntry(UserAccount userAccount, DaymarkEntryDate entryDate) {
         mUserAccount = userAccount;
-        mEntryDate = entryDate;
+        mEntryDate = entryDate.getValue();
         mHasMorningEntry = false;
         mHasEveningEntry = false;
         mGoalsText = "";
@@ -108,7 +96,7 @@ public class DaymarkEntry {
         mNotesText = "";
     }
 
-    public static DaymarkEntry create(UserAccount userAccount, LocalDate entryDate) {
+    public static DaymarkEntry create(UserAccount userAccount, DaymarkEntryDate entryDate) {
         if (userAccount == null) {
             throw new IllegalArgumentException("userAccount must not be null.");
         }
@@ -145,6 +133,10 @@ public class DaymarkEntry {
     }
 
     public String readSection(EDaymarkSectionType daymarkSectionType) {
+        if (daymarkSectionType == null) {
+            throw new IllegalArgumentException("daymarkSectionType must not be null.");
+        }
+
         return switch (daymarkSectionType) {
             case GOALS -> mGoalsText;
             case FOCUS -> mFocusText;
@@ -158,12 +150,16 @@ public class DaymarkEntry {
         };
     }
 
-    public void writeSection(EDaymarkSectionType daymarkSectionType, String normalizedBodyOrNull) {
-        String safeBody = "";
-        if (normalizedBodyOrNull != null) {
-            safeBody = normalizedBodyOrNull;
+    public void writeSection(EDaymarkSectionType daymarkSectionType, DaymarkSectionText normalizedBody) {
+        if (daymarkSectionType == null) {
+            throw new IllegalArgumentException("daymarkSectionType must not be null.");
         }
 
+        if (normalizedBody == null) {
+            throw new IllegalArgumentException("normalizedBody must not be null.");
+        }
+
+        String safeBody = normalizedBody.getValue();
         switch (daymarkSectionType) {
             case GOALS -> {
                 mGoalsText = safeBody;
@@ -197,30 +193,8 @@ public class DaymarkEntry {
         refreshEntryPresenceFlags();
     }
 
-    public String buildMarkdownText() {
-        List<String> blocks = new ArrayList<>();
-
-        if (hasMorningEntry()) {
-            appendSectionBlocks(blocks, MORNING_SECTION_ORDER);
-        }
-
-        if (hasEveningEntry()) {
-            appendSectionBlocks(blocks, EVENING_SECTION_ORDER);
-        }
-
-        return String.join("\r\n\r\n", blocks).stripTrailing();
-    }
-
     public List<String> readCheckedGoalTexts() {
-        List<String> checkedGoalTexts = new ArrayList<>();
-
-        for (String line : splitLines(mEveningGoalsText)) {
-            if (line.startsWith("- [x]") || line.startsWith("- [X]")) {
-                checkedGoalTexts.add(line.substring(5).trim());
-            }
-        }
-
-        return checkedGoalTexts;
+        return DaymarkGoalMarkdown.readCheckedGoalTexts(mEveningGoalsText);
     }
 
     @PrePersist
@@ -233,36 +207,6 @@ public class DaymarkEntry {
     @PreUpdate
     public void handleBeforeUpdate() {
         mUpdatedAt = LocalDateTime.now();
-    }
-
-    private void appendSectionBlocks(List<String> blocks, List<EDaymarkSectionType> sectionOrder) {
-        for (EDaymarkSectionType daymarkSectionType : sectionOrder) {
-            String sectionBlock = buildSectionBlock(daymarkSectionType);
-            if (!sectionBlock.isBlank()) {
-                blocks.add(sectionBlock);
-            }
-        }
-    }
-
-    private String buildSectionBlock(EDaymarkSectionType daymarkSectionType) {
-        String body = readSection(daymarkSectionType).strip();
-        if (body.isEmpty()) {
-            return "";
-        }
-
-        List<String> blockLines = new ArrayList<>();
-        blockLines.add(daymarkSectionType.getHeaderText());
-
-        for (String line : splitLines(body)) {
-            if (line.isBlank()) {
-                continue;
-            }
-
-            String normalizedLine = line.stripLeading().replaceFirst("^-\\s*", "").trim();
-            blockLines.add("- " + normalizedLine);
-        }
-
-        return String.join("\r\n", blockLines);
     }
 
     private void refreshEntryPresenceFlags() {
@@ -284,13 +228,5 @@ public class DaymarkEntry {
 
     private static boolean hasText(String textOrNull) {
         return textOrNull != null && !textOrNull.isBlank();
-    }
-
-    private static String[] splitLines(String textOrNull) {
-        if (textOrNull == null || textOrNull.isEmpty()) {
-            return new String[0];
-        }
-
-        return textOrNull.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
     }
 }

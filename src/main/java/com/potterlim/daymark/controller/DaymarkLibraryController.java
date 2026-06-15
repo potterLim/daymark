@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import com.potterlim.daymark.dto.daymark.DaymarkLibrarySearchCriteria;
 import com.potterlim.daymark.dto.daymark.DaymarkLibraryViewDto;
+import com.potterlim.daymark.dto.daymark.EDaymarkLibraryExportFormat;
 import com.potterlim.daymark.entity.EOperationEventType;
 import com.potterlim.daymark.entity.UserAccount;
 import com.potterlim.daymark.service.DaymarkRecordViewService;
@@ -89,7 +90,10 @@ public class DaymarkLibraryController {
         );
         mOperationUsageEventService.recordUserEvent(EOperationEventType.MARKDOWN_EXPORTED, userAccount.getUserAccountId());
         ContentDisposition contentDisposition = ContentDisposition.attachment()
-            .filename(buildLibraryExportFileName(searchCriteria, "md"), StandardCharsets.UTF_8)
+            .filename(
+                buildLibraryExportFileName(searchCriteria, EDaymarkLibraryExportFormat.MARKDOWN),
+                StandardCharsets.UTF_8
+            )
             .build();
 
         return ResponseEntity.ok()
@@ -120,7 +124,10 @@ public class DaymarkLibraryController {
         mOperationUsageEventService.recordUserEvent(EOperationEventType.PDF_EXPORT_VIEWED, userAccount.getUserAccountId());
         model.addAttribute("libraryViewDto", libraryViewDto);
         model.addAttribute("exportItemHtmlByDate", mDaymarkRecordViewService.buildExportItemHtmlByDate(libraryViewDto.getItems()));
-        model.addAttribute("exportFileName", buildLibraryExportFileName(searchCriteria, "pdf"));
+        model.addAttribute(
+            "exportFileName",
+            buildLibraryExportFileName(searchCriteria, EDaymarkLibraryExportFormat.PDF)
+        );
         return "daymark/library-export-print";
     }
 
@@ -132,12 +139,15 @@ public class DaymarkLibraryController {
         return DaymarkLibrarySearchCriteria.create(startDateOrNull, endDateOrNull, keywordOrNull, LocalDate.now(mClock));
     }
 
-    private static String buildLibraryExportFileName(DaymarkLibrarySearchCriteria searchCriteria, String fileExtension) {
+    private static String buildLibraryExportFileName(
+        DaymarkLibrarySearchCriteria searchCriteria,
+        EDaymarkLibraryExportFormat exportFormat
+    ) {
         return "daymark-records-"
             + searchCriteria.getStartDate()
             + "-"
             + searchCriteria.getEndDate()
             + "."
-            + fileExtension;
+            + exportFormat.getFileExtension();
     }
 }

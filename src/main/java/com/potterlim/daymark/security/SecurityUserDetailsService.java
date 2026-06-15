@@ -1,5 +1,6 @@
 package com.potterlim.daymark.security;
 
+import com.potterlim.daymark.identity.LoginIdentifier;
 import com.potterlim.daymark.service.IUserAccountService;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -17,7 +18,7 @@ public class SecurityUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String userName) throws UsernameNotFoundException {
-        return mUserAccountService.findUserAccountByLoginIdentifier(userName)
+        return mUserAccountService.findUserAccountByLoginIdentifier(LoginIdentifier.createOrNull(userName))
             .orElseThrow(() -> new UsernameNotFoundException("User account not found."));
     }
 }

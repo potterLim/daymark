@@ -1,17 +1,15 @@
 package com.potterlim.daymark.controller;
 
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
-import com.potterlim.daymark.dto.operations.OperationsTrendViewDto;
+import com.potterlim.daymark.dto.operations.OperationsTrendViewAssembler;
 import com.potterlim.daymark.entity.WeeklyOperationMetricSnapshot;
 import com.potterlim.daymark.service.WeeklyOperationMetricSnapshotService;
-import com.potterlim.daymark.service.WeeklyOperationsSummary;
+import com.potterlim.daymark.support.WeeklyOperationsSummary;
 import com.potterlim.daymark.service.WeeklyOperationsSummaryService;
-import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
+import com.potterlim.daymark.support.DaymarkDateRange;
+import com.potterlim.daymark.support.DaymarkWeekRange;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/admin/operations")
 public class OperationsAdminController {
 
-    private static final String ADMINISTRATOR_ROLE_AUTHORITY = "ROLE_ADMIN";
     private static final int DEFAULT_TREND_WEEK_COUNT = 12;
     private static final int MINIMUM_TREND_WEEK_COUNT = 4;
     private static final int MAXIMUM_TREND_WEEK_COUNT = 24;
@@ -46,39 +43,30 @@ public class OperationsAdminController {
     public String showOperationsDashboard(
         @RequestParam(name = "date", required = false) LocalDate referenceDateOrNull,
         @RequestParam(name = "weeks", required = false) Integer trendWeekCountOrNull,
-        Authentication authenticationOrNull,
-        HttpServletResponse httpServletResponse,
         Model model
     ) {
-        if (!hasAdministratorRole(authenticationOrNull)) {
-            httpServletResponse.setStatus(HttpStatus.NOT_FOUND.value());
-            return "error/404";
-        }
-
         LocalDate currentDate = LocalDate.now(mClock);
         LocalDate selectedReferenceDate = resolveSelectedReferenceDate(referenceDateOrNull, currentDate);
         int selectedTrendWeekCount = resolveSelectedTrendWeekCount(trendWeekCountOrNull);
-        LocalDate selectedWeekStartDate = resolveWeekStartDate(selectedReferenceDate);
-        LocalDate selectedWeekEndDate = resolveSelectedWeekEndDate(selectedWeekStartDate, currentDate);
-        LocalDate trendStartDate = selectedWeekStartDate.minusWeeks(selectedTrendWeekCount - 1L);
+        DaymarkWeekRange selectedWeekRange = DaymarkWeekRange.containing(selectedReferenceDate)
+            .withEndNoLaterThan(currentDate);
+        LocalDate trendStartDate = selectedWeekRange.getStartDate().minusWeeks(selectedTrendWeekCount - 1L);
+        DaymarkDateRange trendDateRange = DaymarkDateRange.of(trendStartDate, selectedWeekRange.getEndDate());
         List<WeeklyOperationMetricSnapshot> selectedWeeklySnapshots =
-            mWeeklyOperationMetricSnapshotService.listWeeklySnapshotsWithinDateRange(
-                trendStartDate,
-                selectedWeekEndDate
-            );
+            mWeeklyOperationMetricSnapshotService.listWeeklySnapshotsWithinDateRange(trendDateRange);
         WeeklyOperationsSummary currentWeeklySummary =
-            mWeeklyOperationsSummaryService.buildWeeklySummary(selectedWeekStartDate, selectedWeekEndDate);
+            mWeeklyOperationsSummaryService.buildWeeklySummary(selectedWeekRange);
 
         model.addAttribute("currentWeeklySummary", currentWeeklySummary);
         model.addAttribute("recentWeeklySnapshots", selectedWeeklySnapshots);
         model.addAttribute("selectedTrendDate", selectedReferenceDate);
         model.addAttribute("selectedTrendStartDate", trendStartDate);
-        model.addAttribute("selectedTrendEndDate", selectedWeekEndDate);
+        model.addAttribute("selectedTrendEndDate", selectedWeekRange.getEndDate());
         model.addAttribute("selectedTrendWeekCount", selectedTrendWeekCount);
         model.addAttribute("trendWeekOptions", TREND_WEEK_OPTIONS);
         model.addAttribute(
             "operationsTrendViewDto",
-            OperationsTrendViewDto.create(selectedWeeklySnapshots, currentWeeklySummary)
+            OperationsTrendViewAssembler.create(selectedWeeklySnapshots, currentWeeklySummary)
         );
         return "admin/operations";
     }
@@ -105,29 +93,5 @@ public class OperationsAdminController {
         }
 
         return trendWeekCountOrNull;
-    }
-
-    private static LocalDate resolveSelectedWeekEndDate(LocalDate selectedWeekStartDate, LocalDate currentDate) {
-        LocalDate selectedWeekEndDate = selectedWeekStartDate.plusDays(6L);
-        if (selectedWeekEndDate.isAfter(currentDate)) {
-            return currentDate;
-        }
-
-        return selectedWeekEndDate;
-    }
-
-    private static LocalDate resolveWeekStartDate(LocalDate referenceDate) {
-        return referenceDate.minusDays(
-            referenceDate.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue()
-        );
-    }
-
-    private static boolean hasAdministratorRole(Authentication authenticationOrNull) {
-        return authenticationOrNull != null
-            && authenticationOrNull.getAuthorities()
-                .stream()
-                .anyMatch(
-                    grantedAuthority -> ADMINISTRATOR_ROLE_AUTHORITY.equals(grantedAuthority.getAuthority())
-                );
     }
 }

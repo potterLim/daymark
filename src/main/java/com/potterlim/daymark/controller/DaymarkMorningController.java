@@ -4,13 +4,14 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import com.potterlim.daymark.dto.daymark.DaymarkDayStatusDto;
+import com.potterlim.daymark.dto.daymark.MorningPlanSaveCommand;
 import com.potterlim.daymark.dto.daymark.MorningFormDto;
 import com.potterlim.daymark.entity.EOperationEventType;
 import com.potterlim.daymark.entity.UserAccount;
 import com.potterlim.daymark.entity.UserAccountId;
-import com.potterlim.daymark.service.DaymarkRecordViewService;
 import com.potterlim.daymark.service.IDaymarkService;
 import com.potterlim.daymark.service.OperationUsageEventService;
+import com.potterlim.daymark.support.DaymarkEntryDate;
 import com.potterlim.daymark.support.EDaymarkSectionType;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,18 +31,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class DaymarkMorningController {
 
     private final IDaymarkService mDaymarkService;
-    private final DaymarkRecordViewService mDaymarkRecordViewService;
     private final OperationUsageEventService mOperationUsageEventService;
     private final Clock mClock;
 
     public DaymarkMorningController(
         IDaymarkService daymarkService,
-        DaymarkRecordViewService daymarkRecordViewService,
         OperationUsageEventService operationUsageEventService,
         Clock clock
     ) {
         mDaymarkService = daymarkService;
-        mDaymarkRecordViewService = daymarkRecordViewService;
         mOperationUsageEventService = operationUsageEventService;
         mClock = clock;
     }
@@ -51,7 +49,7 @@ public class DaymarkMorningController {
         LocalDate currentDate = LocalDate.now(mClock);
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.MORNING_PLAN_VIEWED, userAccountId);
-        List<LocalDate> morningDates = mDaymarkService.listWeek(currentDate, userAccountId)
+        List<LocalDate> morningDates = mDaymarkService.listWeek(DaymarkEntryDate.of(currentDate), userAccountId)
             .stream()
             .filter(DaymarkDayStatusDto::hasMorningEntry)
             .map(DaymarkDayStatusDto::getDate)
@@ -71,10 +69,15 @@ public class DaymarkMorningController {
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.MORNING_PLAN_VIEWED, userAccountId);
         MorningFormDto morningFormDto = new MorningFormDto();
+        DaymarkEntryDate entryDate = DaymarkEntryDate.of(date);
         morningFormDto.setDate(date);
-        morningFormDto.setGoals(mDaymarkService.readSection(date, userAccountId, EDaymarkSectionType.GOALS));
-        morningFormDto.setFocus(mDaymarkService.readSection(date, userAccountId, EDaymarkSectionType.FOCUS));
-        morningFormDto.setChallenges(mDaymarkService.readSection(date, userAccountId, EDaymarkSectionType.CHALLENGES));
+        morningFormDto.setGoals(mDaymarkService.readSection(entryDate, userAccountId, EDaymarkSectionType.GOALS));
+        morningFormDto.setFocus(mDaymarkService.readSection(entryDate, userAccountId, EDaymarkSectionType.FOCUS));
+        morningFormDto.setChallenges(mDaymarkService.readSection(
+            entryDate,
+            userAccountId,
+            EDaymarkSectionType.CHALLENGES
+        ));
 
         model.addAttribute("morningFormDto", morningFormDto);
         return "daymark/morning-edit";
@@ -94,25 +97,13 @@ public class DaymarkMorningController {
         }
 
         UserAccountId userAccountId = userAccount.getUserAccountId();
-        String goalsMarkdownList = mDaymarkRecordViewService.buildGoalMarkdownList(morningFormDto.getGoals());
-        mDaymarkService.writeSection(
+        mDaymarkService.saveMorningPlan(MorningPlanSaveCommand.createFromRawInput(
             morningFormDto.getDate(),
             userAccountId,
-            EDaymarkSectionType.GOALS,
-            goalsMarkdownList
-        );
-        mDaymarkService.writeSection(
-            morningFormDto.getDate(),
-            userAccountId,
-            EDaymarkSectionType.FOCUS,
-            morningFormDto.getFocus()
-        );
-        mDaymarkService.writeSection(
-            morningFormDto.getDate(),
-            userAccountId,
-            EDaymarkSectionType.CHALLENGES,
+            morningFormDto.getGoals(),
+            morningFormDto.getFocus(),
             morningFormDto.getChallenges()
-        );
+        ));
 
         redirectAttributes.addFlashAttribute("message", "아침 계획이 저장되었습니다.");
         mOperationUsageEventService.recordUserEvent(EOperationEventType.MORNING_PLAN_SAVED, userAccountId);

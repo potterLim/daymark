@@ -1,17 +1,12 @@
 package com.potterlim.daymark.config;
 
-import java.io.IOException;
 import com.potterlim.daymark.security.ExternalBrowserRequiredFilter;
+import com.potterlim.daymark.security.NotFoundAccessDeniedHandler;
 import com.potterlim.daymark.security.SecurityUserDetailsService;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -49,7 +44,8 @@ public class SecurityConfiguration {
         SecurityContextRepository securityContextRepository,
         RequestCache requestCache,
         ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider,
-        AuthenticationSuccessHandler googleOAuth2AuthenticationSuccessHandler
+        AuthenticationSuccessHandler googleOAuth2AuthenticationSuccessHandler,
+        NotFoundAccessDeniedHandler notFoundAccessDeniedHandler
     ) throws Exception {
         String rememberMeCookieName = mDaymarkApplicationProperties.getSecurity().getRememberMeCookieName();
 
@@ -65,6 +61,7 @@ public class SecurityConfiguration {
                         "/js/**",
                         "/favicon.ico",
                         "/error",
+                        "/error/not-found",
                         "/external-browser-required",
                         "/login",
                         "/oauth2/**",
@@ -74,8 +71,6 @@ public class SecurityConfiguration {
                         "/sign-in-help"
                     )
                     .permitAll()
-                    .requestMatchers(HttpMethod.GET, "/admin/operations")
-                    .authenticated()
                     .requestMatchers(HttpMethod.GET,
                         "/account",
                         "/account/password",
@@ -97,6 +92,10 @@ public class SecurityConfiguration {
                         "/logout"
                     )
                     .authenticated()
+                    .requestMatchers("/admin/**")
+                    .hasRole("ADMIN")
+                    .requestMatchers("/account/**", "/daymark/**")
+                    .authenticated()
                     .requestMatchers("/actuator/**")
                     .denyAll()
                     .anyRequest()
@@ -104,7 +103,7 @@ public class SecurityConfiguration {
             .exceptionHandling(exceptionHandling ->
                 exceptionHandling
                     .authenticationEntryPoint(new LoginUrlAuthenticationEntryPoint("/login"))
-                    .accessDeniedHandler(SecurityConfiguration::forwardToNotFoundPage))
+                    .accessDeniedHandler(notFoundAccessDeniedHandler))
             .securityContext(securityContext ->
                 securityContext.securityContextRepository(securityContextRepository))
             .requestCache(requestCacheConfigurer -> requestCacheConfigurer.requestCache(requestCache))
@@ -171,14 +170,5 @@ public class SecurityConfiguration {
     @Bean
     public PasswordEncoder createPasswordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    private static void forwardToNotFoundPage(
-        HttpServletRequest httpServletRequest,
-        HttpServletResponse httpServletResponse,
-        AccessDeniedException accessDeniedException
-    ) throws ServletException, IOException {
-        httpServletResponse.setStatus(HttpStatus.NOT_FOUND.value());
-        httpServletRequest.getRequestDispatcher("/error").forward(httpServletRequest, httpServletResponse);
     }
 }

@@ -2,16 +2,20 @@ package com.potterlim.daymark.controller;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import com.potterlim.daymark.support.DaymarkGoalCheckItem;
 import com.potterlim.daymark.dto.daymark.DaymarkDayStatusDto;
+import com.potterlim.daymark.dto.daymark.EveningGoalItemDto;
 import com.potterlim.daymark.dto.daymark.EveningFormDto;
+import com.potterlim.daymark.dto.daymark.EveningReviewSaveCommand;
 import com.potterlim.daymark.entity.EOperationEventType;
 import com.potterlim.daymark.entity.UserAccount;
 import com.potterlim.daymark.entity.UserAccountId;
 import com.potterlim.daymark.service.DaymarkRecordViewService;
 import com.potterlim.daymark.service.IDaymarkService;
 import com.potterlim.daymark.service.OperationUsageEventService;
-import com.potterlim.daymark.support.EDaymarkSectionType;
+import com.potterlim.daymark.support.DaymarkEntryDate;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -55,7 +59,7 @@ public class DaymarkEveningController {
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.EVENING_REVIEW_VIEWED, userAccountId);
 
-        List<LocalDate> eveningDates = mDaymarkService.listWeek(currentDate, userAccountId)
+        List<LocalDate> eveningDates = mDaymarkService.listWeek(DaymarkEntryDate.of(currentDate), userAccountId)
             .stream()
             .filter(daymarkDayStatusDto -> daymarkDayStatusDto.hasMorningEntry() || daymarkDayStatusDto.hasEveningEntry())
             .map(DaymarkDayStatusDto::getDate)
@@ -98,40 +102,40 @@ public class DaymarkEveningController {
         }
 
         UserAccountId userAccountId = userAccount.getUserAccountId();
-        mDaymarkService.writeSection(
+        mDaymarkService.saveEveningReview(EveningReviewSaveCommand.createFromRawInput(
             eveningFormDto.getDate(),
             userAccountId,
-            EDaymarkSectionType.EVENING_GOALS,
-            mDaymarkRecordViewService.buildCheckedGoalMarkdownList(eveningFormDto.getGoals())
-        );
-        mDaymarkService.writeSection(
-            eveningFormDto.getDate(),
-            userAccountId,
-            EDaymarkSectionType.ACHIEVEMENTS,
-            eveningFormDto.getAchievements()
-        );
-        mDaymarkService.writeSection(
-            eveningFormDto.getDate(),
-            userAccountId,
-            EDaymarkSectionType.IMPROVEMENTS,
-            eveningFormDto.getImprovements()
-        );
-        mDaymarkService.writeSection(
-            eveningFormDto.getDate(),
-            userAccountId,
-            EDaymarkSectionType.GRATITUDE,
-            eveningFormDto.getGratitude()
-        );
-        mDaymarkService.writeSection(
-            eveningFormDto.getDate(),
-            userAccountId,
-            EDaymarkSectionType.NOTES,
+            toGoalCheckItems(eveningFormDto.getGoals()),
+            eveningFormDto.getAchievements(),
+            eveningFormDto.getImprovements(),
+            eveningFormDto.getGratitude(),
             eveningFormDto.getNotes()
-        );
+        ));
 
         redirectAttributes.addFlashAttribute("message", "저녁 회고가 저장되었습니다.");
         mOperationUsageEventService.recordUserEvent(EOperationEventType.EVENING_REVIEW_SAVED, userAccountId);
         return "redirect:/daymark/evening";
+    }
+
+    private static List<DaymarkGoalCheckItem> toGoalCheckItems(List<EveningGoalItemDto> goalItemsOrNull) {
+        if (goalItemsOrNull == null || goalItemsOrNull.isEmpty()) {
+            return List.of();
+        }
+
+        List<DaymarkGoalCheckItem> goalCheckItems = new ArrayList<>();
+        for (EveningGoalItemDto goalItem : goalItemsOrNull) {
+            if (goalItem == null) {
+                continue;
+            }
+
+            if (goalItem.isDone()) {
+                goalCheckItems.add(DaymarkGoalCheckItem.createCompleted(goalItem.getText()));
+            } else {
+                goalCheckItems.add(DaymarkGoalCheckItem.createPending(goalItem.getText()));
+            }
+        }
+
+        return goalCheckItems;
     }
 
     private static void validateEveningFormInput(

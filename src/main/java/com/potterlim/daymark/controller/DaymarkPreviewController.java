@@ -7,6 +7,8 @@ import com.potterlim.daymark.entity.UserAccountId;
 import com.potterlim.daymark.service.DaymarkRecordViewService;
 import com.potterlim.daymark.service.IDaymarkService;
 import com.potterlim.daymark.service.OperationUsageEventService;
+import com.potterlim.daymark.support.DaymarkEntryDate;
+import com.potterlim.daymark.support.DaymarkPreviewMarkdown;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -41,11 +43,12 @@ public class DaymarkPreviewController {
     ) {
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.RECORD_PREVIEW_VIEWED, userAccountId);
-        String markdownText = mDaymarkService.readEntryMarkdownContent(date, userAccountId);
-        boolean hasPreviewContent = !markdownText.isBlank();
+        String markdownText = mDaymarkService.readEntryMarkdownContent(DaymarkEntryDate.of(date), userAccountId);
+        DaymarkPreviewMarkdown previewMarkdown = DaymarkPreviewMarkdown.create(markdownText);
+        boolean hasPreviewContent = !previewMarkdown.isBlank();
         String previewHtml = "";
         if (hasPreviewContent) {
-            previewHtml = mDaymarkRecordViewService.buildPreviewHtml(markdownText);
+            previewHtml = mDaymarkRecordViewService.buildPreviewHtml(previewMarkdown);
         }
 
         model.addAttribute("previewDate", date);

@@ -47,11 +47,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
     ) throws IOException {
         List<RateLimitCheck> rateLimitChecks = createRateLimitChecks(httpServletRequest);
         for (RateLimitCheck rateLimitCheck : rateLimitChecks) {
-            boolean isAllowed = mInMemoryRateLimiter.tryAcquire(
-                rateLimitCheck.getKey(),
-                rateLimitCheck.getRequestLimit(),
-                rateLimitCheck.getWindowDuration()
-            );
+            boolean isAllowed = mInMemoryRateLimiter.tryAcquire(rateLimitCheck);
             if (!isAllowed) {
                 writeRateLimitResponse(httpServletResponse);
                 return false;
@@ -68,7 +64,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         List<RateLimitCheck> rateLimitChecks = new ArrayList<>();
 
         if ("GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method)) {
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "general-view:" + clientAddress,
                 GENERAL_VIEW_LIMIT_PER_MINUTE,
                 ONE_MINUTE
@@ -76,13 +72,13 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         if ("POST".equalsIgnoreCase(method) && "/login".equals(requestPath)) {
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "login-ip:" + clientAddress,
                 LOGIN_IP_LIMIT_PER_TEN_MINUTES,
                 TEN_MINUTES
             ));
             createLoginIdentifierKeyOrNull(httpServletRequest)
-                .ifPresent(loginIdentifierKey -> rateLimitChecks.add(new RateLimitCheck(
+                .ifPresent(loginIdentifierKey -> rateLimitChecks.add(createRateLimitCheck(
                     loginIdentifierKey,
                     LOGIN_IDENTIFIER_LIMIT_PER_TEN_MINUTES,
                     TEN_MINUTES
@@ -90,7 +86,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         if ("GET".equalsIgnoreCase(method) && "/oauth2/authorization/google".equals(requestPath)) {
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "google-login-start:" + clientAddress,
                 GOOGLE_LOGIN_START_LIMIT_PER_TEN_MINUTES,
                 TEN_MINUTES
@@ -98,7 +94,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         if ("POST".equalsIgnoreCase(method) && "/register".equals(requestPath)) {
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "workspace-create:" + clientAddress,
                 WORKSPACE_CREATE_LIMIT_PER_HOUR,
                 ONE_HOUR
@@ -106,7 +102,7 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         if (isRecordSaveRequest(method, requestPath)) {
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "record-save:" + resolveUserOrClientKey(clientAddress),
                 RECORD_SAVE_LIMIT_PER_TEN_MINUTES,
                 TEN_MINUTES
@@ -115,12 +111,12 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
 
         if (isExportRequest(method, requestPath)) {
             String userOrClientKey = resolveUserOrClientKey(clientAddress);
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "export-short:" + userOrClientKey,
                 EXPORT_LIMIT_PER_TEN_MINUTES,
                 TEN_MINUTES
             ));
-            rateLimitChecks.add(new RateLimitCheck(
+            rateLimitChecks.add(createRateLimitCheck(
                 "export-daily:" + userOrClientKey,
                 EXPORT_LIMIT_PER_DAY,
                 ONE_DAY
@@ -128,6 +124,18 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
         }
 
         return rateLimitChecks;
+    }
+
+    private static RateLimitCheck createRateLimitCheck(
+        String keyValue,
+        int requestLimit,
+        Duration windowDuration
+    ) {
+        return RateLimitCheck.of(
+            RateLimitKey.create(keyValue),
+            RateLimitRequestLimit.of(requestLimit),
+            windowDuration
+        );
     }
 
     private static Optional<String> createLoginIdentifierKeyOrNull(HttpServletRequest httpServletRequest) {
@@ -160,43 +168,17 @@ public class RateLimitingInterceptor implements HandlerInterceptor {
     }
 
     private static String resolveClientAddress(HttpServletRequest httpServletRequest) {
-        String forwardedForOrNull = httpServletRequest.getHeader("X-Forwarded-For");
-        if (forwardedForOrNull == null || forwardedForOrNull.isBlank()) {
-            return httpServletRequest.getRemoteAddr();
+        String remoteAddressOrNull = httpServletRequest.getRemoteAddr();
+        if (remoteAddressOrNull == null || remoteAddressOrNull.isBlank()) {
+            return "unknown-client";
         }
 
-        String[] forwardedAddresses = forwardedForOrNull.split(",");
-        return forwardedAddresses[forwardedAddresses.length - 1].trim();
+        return remoteAddressOrNull;
     }
 
     private static void writeRateLimitResponse(HttpServletResponse httpServletResponse) throws IOException {
         httpServletResponse.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         httpServletResponse.setContentType("text/plain;charset=UTF-8");
         httpServletResponse.getWriter().write(RATE_LIMIT_RESPONSE_TEXT);
-    }
-
-    private static final class RateLimitCheck {
-
-        private final String mKey;
-        private final int mRequestLimit;
-        private final Duration mWindowDuration;
-
-        private RateLimitCheck(String key, int requestLimit, Duration windowDuration) {
-            mKey = key;
-            mRequestLimit = requestLimit;
-            mWindowDuration = windowDuration;
-        }
-
-        private String getKey() {
-            return mKey;
-        }
-
-        private int getRequestLimit() {
-            return mRequestLimit;
-        }
-
-        private Duration getWindowDuration() {
-            return mWindowDuration;
-        }
     }
 }

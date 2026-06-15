@@ -2,6 +2,8 @@ package com.potterlim.daymark.service;
 
 import java.time.LocalDate;
 import java.util.Locale;
+import com.potterlim.daymark.support.DaymarkWeekRange;
+import com.potterlim.daymark.support.WeeklyOperationsSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -39,12 +41,11 @@ public class WeeklyOperationsSummaryScheduler {
     )
     @Transactional(readOnly = true)
     public void logPreviousWeekSummary() {
-        LocalDate previousWeekStartDate = WeeklyOperationsSummaryService.resolvePreviousWeekStartDate(LocalDate.now());
-        LocalDate previousWeekEndDate = previousWeekStartDate.plusDays(6L);
+        DaymarkWeekRange previousWeekRange = DaymarkWeekRange.containing(LocalDate.now().minusWeeks(1L));
 
         try {
             WeeklyOperationsSummary weeklyOperationsSummary =
-                mWeeklyOperationsSummaryService.buildWeeklySummary(previousWeekStartDate, previousWeekEndDate);
+                mWeeklyOperationsSummaryService.buildWeeklySummary(previousWeekRange);
             mWeeklyOperationMetricSnapshotService.saveWeeklySnapshot(weeklyOperationsSummary);
             LOGGER.info(
                 "WEEKLY_OPERATIONS_SUMMARY weekStart={} weekEnd={} totalRegisteredUsers={} newlyRegisteredUsers={} "
@@ -81,14 +82,17 @@ public class WeeklyOperationsSummaryScheduler {
         } catch (RuntimeException runtimeException) {
             LOGGER.error(
                 "Weekly operations summary generation failed. weekStart={}, weekEnd={}",
-                previousWeekStartDate,
-                previousWeekEndDate,
+                previousWeekRange.getStartDate(),
+                previousWeekRange.getEndDate(),
                 runtimeException
             );
-            mAlertNotificationService.sendOperationalAlert(
-                "weekly-operations-summary-failed",
-                "weekStart=%s, weekEnd=%s".formatted(previousWeekStartDate, previousWeekEndDate)
-            );
+            mAlertNotificationService.sendOperationalAlert(new OperationalAlert(
+                EOperationalAlertType.WEEKLY_OPERATIONS_SUMMARY_FAILED,
+                OperationalAlertMessage.create("weekStart=%s, weekEnd=%s".formatted(
+                    previousWeekRange.getStartDate(),
+                    previousWeekRange.getEndDate()
+                ))
+            ));
         }
     }
 

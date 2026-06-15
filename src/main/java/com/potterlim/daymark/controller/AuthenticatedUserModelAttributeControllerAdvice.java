@@ -1,6 +1,7 @@
 package com.potterlim.daymark.controller;
 
 import com.potterlim.daymark.entity.UserAccount;
+import com.potterlim.daymark.identity.LoginIdentifier;
 import com.potterlim.daymark.service.IUserAccountService;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -35,6 +36,8 @@ public class AuthenticatedUserModelAttributeControllerAdvice {
             return null;
         }
 
-        return mUserAccountService.findUserAccountByLoginIdentifier(authenticationOrNull.getName()).orElse(null);
+        return mUserAccountService.findUserAccountByLoginIdentifier(
+            LoginIdentifier.createOrNull(authenticationOrNull.getName())
+        ).orElse(null);
     }
 }

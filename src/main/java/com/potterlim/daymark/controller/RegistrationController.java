@@ -85,7 +85,7 @@ public class RegistrationController {
         }
 
         RegisterGoogleUserAccountCommand registerGoogleUserAccountCommand =
-            new RegisterGoogleUserAccountCommand(
+            RegisterGoogleUserAccountCommand.createFromRawInput(
                 registerRequestDto.getUserName().trim(),
                 googleRegistrationSessionOrNull.emailAddress(),
                 googleRegistrationSessionOrNull.googleSubject(),

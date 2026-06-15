@@ -20,6 +20,14 @@ public class PostLoginRedirectPathResolver {
         HttpServletRequest httpServletRequest,
         HttpServletResponse httpServletResponse
     ) {
+        if (httpServletRequest == null) {
+            throw new IllegalArgumentException("httpServletRequest must not be null.");
+        }
+
+        if (httpServletResponse == null) {
+            throw new IllegalArgumentException("httpServletResponse must not be null.");
+        }
+
         SavedRequest savedRequestOrNull = mRequestCache.getRequest(httpServletRequest, httpServletResponse);
         if (savedRequestOrNull == null) {
             return "/";

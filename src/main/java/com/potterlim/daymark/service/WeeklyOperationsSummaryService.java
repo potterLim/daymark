@@ -1,9 +1,7 @@
 package com.potterlim.daymark.service;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.TemporalAdjusters;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -14,7 +12,14 @@ import com.potterlim.daymark.entity.EUserRole;
 import com.potterlim.daymark.repository.IDaymarkEntryRepository;
 import com.potterlim.daymark.repository.IOperationUsageEventRepository;
 import com.potterlim.daymark.repository.IUserAccountRepository;
+import com.potterlim.daymark.support.DaymarkGoalCompletionCounts;
+import com.potterlim.daymark.support.DaymarkGoalMarkdown;
+import com.potterlim.daymark.support.DaymarkWeekRange;
 import com.potterlim.daymark.support.EDaymarkSectionType;
+import com.potterlim.daymark.support.WeeklyOperationMetricAverage;
+import com.potterlim.daymark.support.WeeklyOperationMetricCount;
+import com.potterlim.daymark.support.WeeklyOperationMetricPercent;
+import com.potterlim.daymark.support.WeeklyOperationsSummary;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +43,13 @@ public class WeeklyOperationsSummaryService {
     }
 
     @Transactional(readOnly = true)
-    public WeeklyOperationsSummary buildWeeklySummary(LocalDate weekStartDate, LocalDate weekEndDate) {
-        validateWeekRange(weekStartDate, weekEndDate);
+    public WeeklyOperationsSummary buildWeeklySummary(DaymarkWeekRange weekRange) {
+        if (weekRange == null) {
+            throw new IllegalArgumentException("weekRange must not be null.");
+        }
 
+        LocalDate weekStartDate = weekRange.getStartDate();
+        LocalDate weekEndDate = weekRange.getEndDate();
         LocalDateTime weekStartDateTime = weekStartDate.atStartOfDay();
         LocalDateTime weekEndExclusiveDateTime = weekEndDate.plusDays(1L).atStartOfDay();
         List<DaymarkEntry> weeklyEntries = mDaymarkEntryRepository.findEntriesWithinDateRangeExcludingUserRole(
@@ -54,8 +63,7 @@ public class WeeklyOperationsSummaryService {
         long weeklyMorningEntries = 0L;
         long weeklyEveningEntries = 0L;
         long weeklyPlanReviewCompletedDays = 0L;
-        int totalTrackedGoals = 0;
-        int completedTrackedGoals = 0;
+        DaymarkGoalCompletionCounts trackedGoalCompletionCounts = DaymarkGoalCompletionCounts.empty();
 
         for (DaymarkEntry daymarkEntry : weeklyEntries) {
             if (!daymarkEntry.hasAnyEntryContent()) {
@@ -87,10 +95,9 @@ public class WeeklyOperationsSummaryService {
                 newWorkspaceActivatedUserIds.add(daymarkEntry.getUserAccountId().getValue());
             }
 
-            GoalCompletionAccumulator goalCompletionAccumulator =
-                analyzeGoalCompletion(daymarkEntry.readSection(EDaymarkSectionType.EVENING_GOALS));
-            totalTrackedGoals += goalCompletionAccumulator.getTotalGoals();
-            completedTrackedGoals += goalCompletionAccumulator.getCompletedGoals();
+            DaymarkGoalCompletionCounts goalCompletionCounts =
+                DaymarkGoalMarkdown.countGoalCompletion(daymarkEntry.readSection(EDaymarkSectionType.EVENING_GOALS));
+            trackedGoalCompletionCounts = trackedGoalCompletionCounts.plus(goalCompletionCounts);
         }
 
         Set<Long> weeklyActiveUserIds =
@@ -111,93 +118,108 @@ public class WeeklyOperationsSummaryService {
         );
         long newWorkspaceActivatedUsers = newWorkspaceActivatedUserIds.size();
 
-        double averageWritingDaysPerActiveUser = 0.0;
-        double averageEntryCompletionsPerActiveUser = 0.0;
-        if (weeklyActiveUsers > 0L) {
-            averageWritingDaysPerActiveUser = (double) weeklyWritingDays / weeklyActiveUsers;
-            averageEntryCompletionsPerActiveUser = (double) (weeklyMorningEntries + weeklyEveningEntries) / weeklyActiveUsers;
-        }
-
-        double planReviewConversionRatePercent = 0.0;
-        if (weeklyMorningEntries > 0L) {
-            planReviewConversionRatePercent = (double) weeklyPlanReviewCompletedDays * 100.0 / weeklyMorningEntries;
-        }
-
-        double newWorkspaceActivationRatePercent = 0.0;
-        if (newlyRegisteredUsers > 0L) {
-            newWorkspaceActivationRatePercent = (double) newWorkspaceActivatedUsers * 100.0 / newlyRegisteredUsers;
-        }
-
-        double goalCompletionRatePercent = 0.0;
-        if (totalTrackedGoals > 0) {
-            goalCompletionRatePercent = (double) completedTrackedGoals * 100.0 / totalTrackedGoals;
-        }
-
-        return new WeeklyOperationsSummary(
-            weekStartDate,
-            weekEndDate,
-            totalRegisteredUsers,
-            newlyRegisteredUsers,
-            weeklyActiveUsers,
-            weeklyWritingUsers,
-            weeklyWritingDays,
-            weeklyMorningEntries,
-            weeklyEveningEntries,
-            weeklyPlanReviewCompletedDays,
-            countEvent(EOperationEventType.SIGN_IN_SUCCEEDED, weekStartDateTime, weekEndExclusiveDateTime),
-            countEvent(EOperationEventType.SIGN_IN_FAILED, weekStartDateTime, weekEndExclusiveDateTime),
-            countEvent(EOperationEventType.WEEKLY_REVIEW_VIEWED, weekStartDateTime, weekEndExclusiveDateTime),
-            countEvent(EOperationEventType.RECORD_LIBRARY_VIEWED, weekStartDateTime, weekEndExclusiveDateTime),
-            countEvent(EOperationEventType.MARKDOWN_EXPORTED, weekStartDateTime, weekEndExclusiveDateTime),
-            countEvent(EOperationEventType.PDF_EXPORT_VIEWED, weekStartDateTime, weekEndExclusiveDateTime),
-            countExportingUsers(weekStartDateTime, weekEndExclusiveDateTime),
-            newWorkspaceActivatedUsers,
-            averageWritingDaysPerActiveUser,
-            averageEntryCompletionsPerActiveUser,
-            planReviewConversionRatePercent,
-            newWorkspaceActivationRatePercent,
-            goalCompletionRatePercent
+        WeeklyOperationMetricCount totalRegisteredUserCount = WeeklyOperationMetricCount.of(totalRegisteredUsers);
+        WeeklyOperationMetricCount weeklyActiveUserCount = WeeklyOperationMetricCount.of(weeklyActiveUsers);
+        WeeklyOperationMetricCount weeklyWritingUserCount = WeeklyOperationMetricCount.of(weeklyWritingUsers);
+        WeeklyOperationMetricCount weeklyWritingDayCount = WeeklyOperationMetricCount.of(weeklyWritingDays);
+        WeeklyOperationMetricCount weeklyMorningEntryCount = WeeklyOperationMetricCount.of(weeklyMorningEntries);
+        WeeklyOperationMetricCount weeklyEveningEntryCount = WeeklyOperationMetricCount.of(weeklyEveningEntries);
+        WeeklyOperationMetricCount weeklyPlanReviewCompletedDayCount =
+            WeeklyOperationMetricCount.of(weeklyPlanReviewCompletedDays);
+        WeeklyOperationMetricCount newlyRegisteredUserCount = WeeklyOperationMetricCount.of(newlyRegisteredUsers);
+        WeeklyOperationMetricCount newWorkspaceActivatedUserCount =
+            WeeklyOperationMetricCount.of(newWorkspaceActivatedUsers);
+        WeeklyOperationMetricCount weeklyEntryCompletionCount = WeeklyOperationMetricCount.of(
+            Math.addExact(weeklyMorningEntryCount.getValue(), weeklyEveningEntryCount.getValue())
         );
+        WeeklyOperationMetricAverage averageWritingDaysPerActiveUser =
+            WeeklyOperationMetricAverage.calculate(weeklyWritingDayCount, weeklyActiveUserCount);
+        WeeklyOperationMetricAverage averageEntryCompletionsPerActiveUser =
+            WeeklyOperationMetricAverage.calculate(weeklyEntryCompletionCount, weeklyActiveUserCount);
+        WeeklyOperationMetricPercent planReviewConversionRatePercent =
+            WeeklyOperationMetricPercent.calculate(weeklyPlanReviewCompletedDayCount, weeklyMorningEntryCount);
+        WeeklyOperationMetricPercent newWorkspaceActivationRatePercent =
+            WeeklyOperationMetricPercent.calculate(newWorkspaceActivatedUserCount, newlyRegisteredUserCount);
+
+        return WeeklyOperationsSummary.createBuilder(weekRange)
+            .setTotalRegisteredUsers(totalRegisteredUserCount)
+            .setNewlyRegisteredUsers(newlyRegisteredUserCount)
+            .setWeeklyActiveUsers(weeklyActiveUserCount)
+            .setWeeklyWritingUsers(weeklyWritingUserCount)
+            .setWeeklyWritingDays(weeklyWritingDayCount)
+            .setWeeklyMorningEntries(weeklyMorningEntryCount)
+            .setWeeklyEveningEntries(weeklyEveningEntryCount)
+            .setWeeklyPlanReviewCompletedDays(weeklyPlanReviewCompletedDayCount)
+            .setSignInSucceededCount(countMetricEvent(
+                EOperationEventType.SIGN_IN_SUCCEEDED,
+                weekStartDateTime,
+                weekEndExclusiveDateTime
+            ))
+            .setSignInFailedCount(countMetricEvent(
+                EOperationEventType.SIGN_IN_FAILED,
+                weekStartDateTime,
+                weekEndExclusiveDateTime
+            ))
+            .setWeeklyReviewViewedCount(countMetricEvent(
+                EOperationEventType.WEEKLY_REVIEW_VIEWED,
+                weekStartDateTime,
+                weekEndExclusiveDateTime
+            ))
+            .setRecordLibraryViewedCount(countMetricEvent(
+                EOperationEventType.RECORD_LIBRARY_VIEWED,
+                weekStartDateTime,
+                weekEndExclusiveDateTime
+            ))
+            .setMarkdownExportedCount(countMetricEvent(
+                EOperationEventType.MARKDOWN_EXPORTED,
+                weekStartDateTime,
+                weekEndExclusiveDateTime
+            ))
+            .setPdfExportViewedCount(countMetricEvent(
+                EOperationEventType.PDF_EXPORT_VIEWED,
+                weekStartDateTime,
+                weekEndExclusiveDateTime
+            ))
+            .setExportingUsers(countExportingUsersMetric(weekStartDateTime, weekEndExclusiveDateTime))
+            .setNewWorkspaceActivatedUsers(newWorkspaceActivatedUserCount)
+            .setAverageWritingDaysPerActiveUser(averageWritingDaysPerActiveUser)
+            .setAverageEntryCompletionsPerActiveUser(averageEntryCompletionsPerActiveUser)
+            .setPlanReviewConversionRatePercent(planReviewConversionRatePercent)
+            .setNewWorkspaceActivationRatePercent(newWorkspaceActivationRatePercent)
+            .setGoalCompletionRatePercent(WeeklyOperationMetricPercent.of(
+                trackedGoalCompletionCounts.calculateCompletionRatePercent()
+            ))
+            .build();
     }
 
-    static LocalDate resolvePreviousWeekStartDate(LocalDate currentDate) {
-        return currentDate.minusWeeks(1L).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-    }
-
-    private static void validateWeekRange(LocalDate weekStartDate, LocalDate weekEndDate) {
-        if (weekStartDate == null) {
-            throw new IllegalArgumentException("weekStartDate must not be null.");
-        }
-
-        if (weekEndDate == null) {
-            throw new IllegalArgumentException("weekEndDate must not be null.");
-        }
-
-        if (weekEndDate.isBefore(weekStartDate)) {
-            throw new IllegalArgumentException("weekEndDate must not be before weekStartDate.");
-        }
-    }
-
-    private long countEvent(
+    private WeeklyOperationMetricCount countMetricEvent(
         EOperationEventType eventType,
         LocalDateTime weekStartDateTime,
         LocalDateTime weekEndExclusiveDateTime
     ) {
-        return mOperationUsageEventRepository.countByEventTypeWithinExcludingUserRole(
+        long eventCount = mOperationUsageEventRepository.countByEventTypeWithinExcludingUserRole(
             eventType,
             weekStartDateTime,
             weekEndExclusiveDateTime,
             EXCLUDED_OPERATION_USER_ROLE
         );
+
+        return WeeklyOperationMetricCount.of(eventCount);
     }
 
-    private long countExportingUsers(LocalDateTime weekStartDateTime, LocalDateTime weekEndExclusiveDateTime) {
-        return mOperationUsageEventRepository.countDistinctUserAccountIdsByEventTypesWithinExcludingUserRole(
-            EnumSet.of(EOperationEventType.MARKDOWN_EXPORTED, EOperationEventType.PDF_EXPORT_VIEWED),
-            weekStartDateTime,
-            weekEndExclusiveDateTime,
-            EXCLUDED_OPERATION_USER_ROLE
-        );
+    private WeeklyOperationMetricCount countExportingUsersMetric(
+        LocalDateTime weekStartDateTime,
+        LocalDateTime weekEndExclusiveDateTime
+    ) {
+        long exportingUserCount =
+            mOperationUsageEventRepository.countDistinctUserAccountIdsByEventTypesWithinExcludingUserRole(
+                EnumSet.of(EOperationEventType.MARKDOWN_EXPORTED, EOperationEventType.PDF_EXPORT_VIEWED),
+                weekStartDateTime,
+                weekEndExclusiveDateTime,
+                EXCLUDED_OPERATION_USER_ROLE
+            );
+
+        return WeeklyOperationMetricCount.of(exportingUserCount);
     }
 
     private static boolean isNewWorkspaceWithinRange(
@@ -208,58 +230,5 @@ public class WeeklyOperationsSummaryService {
         return createdAtOrNull != null
             && !createdAtOrNull.isBefore(startDateTime)
             && createdAtOrNull.isBefore(endExclusiveDateTime);
-    }
-
-    private static GoalCompletionAccumulator analyzeGoalCompletion(String eveningGoalsTextOrNull) {
-        GoalCompletionAccumulator goalCompletionAccumulator = new GoalCompletionAccumulator();
-
-        if (eveningGoalsTextOrNull == null || eveningGoalsTextOrNull.isBlank()) {
-            return goalCompletionAccumulator;
-        }
-
-        for (String line : splitLines(eveningGoalsTextOrNull)) {
-            String trimmedLine = line.trim();
-            if (trimmedLine.startsWith("- [x]") || trimmedLine.startsWith("- [X]")) {
-                goalCompletionAccumulator.incrementCompletedGoals();
-                continue;
-            }
-
-            if (trimmedLine.startsWith("- [ ]")) {
-                goalCompletionAccumulator.incrementPendingGoals();
-            }
-        }
-
-        return goalCompletionAccumulator;
-    }
-
-    private static String[] splitLines(String textOrNull) {
-        if (textOrNull == null || textOrNull.isEmpty()) {
-            return new String[0];
-        }
-
-        return textOrNull.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
-    }
-
-    private static final class GoalCompletionAccumulator {
-
-        private int mTotalGoals;
-        private int mCompletedGoals;
-
-        private int getTotalGoals() {
-            return mTotalGoals;
-        }
-
-        private int getCompletedGoals() {
-            return mCompletedGoals;
-        }
-
-        private void incrementCompletedGoals() {
-            mTotalGoals += 1;
-            mCompletedGoals += 1;
-        }
-
-        private void incrementPendingGoals() {
-            mTotalGoals += 1;
-        }
     }
 }

@@ -10,18 +10,16 @@ public final class DaymarkLibraryCalendarDayDto {
     private final int mCompletionPercent;
     private final boolean mIsToday;
 
-    public DaymarkLibraryCalendarDayDto(
-        LocalDate date,
-        boolean isCurrentMonth,
-        boolean hasEntry,
-        int completionPercent,
-        boolean isToday
-    ) {
-        mDate = date;
-        mIsCurrentMonth = isCurrentMonth;
-        mHasEntry = hasEntry;
-        mCompletionPercent = completionPercent;
-        mIsToday = isToday;
+    private DaymarkLibraryCalendarDayDto(Builder builder) {
+        mDate = builder.mDate;
+        mIsCurrentMonth = builder.mIsCurrentMonth;
+        mHasEntry = builder.mHasEntry;
+        mCompletionPercent = builder.mCompletionPercent;
+        mIsToday = builder.mIsToday;
+    }
+
+    public static Builder createBuilder(LocalDate date) {
+        return new Builder(date);
     }
 
     public LocalDate getDate() {
@@ -62,5 +60,50 @@ public final class DaymarkLibraryCalendarDayDto {
 
     public boolean isToday() {
         return mIsToday;
+    }
+
+    public static final class Builder {
+
+        private final LocalDate mDate;
+        private boolean mIsCurrentMonth;
+        private boolean mHasEntry;
+        private int mCompletionPercent;
+        private boolean mIsToday;
+
+        private Builder(LocalDate date) {
+            if (date == null) {
+                throw new IllegalArgumentException("date must not be null.");
+            }
+
+            mDate = date;
+        }
+
+        public Builder markCurrentMonth() {
+            mIsCurrentMonth = true;
+            return this;
+        }
+
+        public Builder markEntryPresent() {
+            mHasEntry = true;
+            return this;
+        }
+
+        public Builder setCompletionPercent(int completionPercent) {
+            if (completionPercent < 0 || completionPercent > 100) {
+                throw new IllegalArgumentException("completionPercent must be between 0 and 100.");
+            }
+
+            mCompletionPercent = completionPercent;
+            return this;
+        }
+
+        public Builder markToday() {
+            mIsToday = true;
+            return this;
+        }
+
+        public DaymarkLibraryCalendarDayDto build() {
+            return new DaymarkLibraryCalendarDayDto(this);
+        }
     }
 }

@@ -24,6 +24,10 @@ public class OperationUsageEventService {
     }
 
     public void recordUserEvent(EOperationEventType eventType, UserAccountId userAccountId) {
+        if (userAccountId == null) {
+            throw new IllegalArgumentException("userAccountId must not be null.");
+        }
+
         recordEvent(eventType, userAccountId);
     }
 
@@ -32,6 +36,10 @@ public class OperationUsageEventService {
     }
 
     private void recordEvent(EOperationEventType eventType, UserAccountId userAccountIdOrNull) {
+        if (eventType == null) {
+            throw new IllegalArgumentException("eventType must not be null.");
+        }
+
         try {
             OperationUsageEvent operationUsageEvent = OperationUsageEvent.record(
                 eventType,

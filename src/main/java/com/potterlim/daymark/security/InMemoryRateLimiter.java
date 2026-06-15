@@ -1,7 +1,6 @@
 package com.potterlim.daymark.security;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -21,10 +20,14 @@ public class InMemoryRateLimiter {
         mClock = clock;
     }
 
-    public boolean tryAcquire(String key, int requestLimit, Duration windowDuration) {
+    public boolean tryAcquire(RateLimitCheck rateLimitCheck) {
+        if (rateLimitCheck == null) {
+            throw new IllegalArgumentException("rateLimitCheck must not be null.");
+        }
+
         long currentTimeMillis = mClock.millis();
-        long windowDurationMillis = windowDuration.toMillis();
-        RateLimitWindow rateLimitWindow = mWindowsByKey.compute(key, (ignoredKey, currentWindowOrNull) -> {
+        long windowDurationMillis = rateLimitCheck.getWindowDuration().toMillis();
+        RateLimitWindow rateLimitWindow = mWindowsByKey.compute(rateLimitCheck.getKey(), (ignoredKey, currentWindowOrNull) -> {
             if (currentWindowOrNull == null || currentWindowOrNull.hasExpired(currentTimeMillis)) {
                 return new RateLimitWindow(currentTimeMillis + windowDurationMillis, 1);
             }
@@ -34,7 +37,7 @@ public class InMemoryRateLimiter {
         });
 
         cleanupExpiredWindowsIfNeeded(currentTimeMillis);
-        return rateLimitWindow.getRequestCount() <= requestLimit;
+        return rateLimitWindow.getRequestCount() <= rateLimitCheck.getRequestLimit();
     }
 
     public void clear() {

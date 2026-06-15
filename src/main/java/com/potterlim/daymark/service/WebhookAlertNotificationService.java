@@ -24,23 +24,23 @@ public class WebhookAlertNotificationService implements IAlertNotificationServic
     }
 
     @Override
-    public void sendOperationalAlert(String alertType, String message) {
+    public void sendOperationalAlert(OperationalAlert operationalAlert) {
         try {
             mRestClient.post()
                 .uri(mDaymarkApplicationProperties.getOperations().getAlertWebhookUrl())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(Map.of(
                     "application", "daymark",
-                    "alertType", alertType,
-                    "message", message
+                    "alertType", operationalAlert.getAlertType().getCode(),
+                    "message", operationalAlert.getMessage()
                 ))
                 .retrieve()
                 .toBodilessEntity();
         } catch (RuntimeException runtimeException) {
             LOGGER.warn(
                 "Operational alert delivery failed. alertType={}, message={}",
-                alertType,
-                message,
+                operationalAlert.getAlertType().getCode(),
+                operationalAlert.getMessage(),
                 runtimeException
             );
         }

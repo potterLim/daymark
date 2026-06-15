@@ -3,6 +3,7 @@ package com.potterlim.daymark.controller;
 import com.potterlim.daymark.dto.auth.LoginRequestDto;
 import com.potterlim.daymark.entity.EOperationEventType;
 import com.potterlim.daymark.entity.UserAccount;
+import com.potterlim.daymark.identity.LoginIdentifier;
 import com.potterlim.daymark.security.ApplicationAuthenticationService;
 import com.potterlim.daymark.security.PostLoginRedirectPathResolver;
 import com.potterlim.daymark.service.IUserAccountService;
@@ -139,7 +140,7 @@ public class LoginController {
     }
 
     private void recordFailedSignInEvent(String loginIdentifier) {
-        mUserAccountService.findUserAccountByLoginIdentifier(loginIdentifier)
+        mUserAccountService.findUserAccountByLoginIdentifier(LoginIdentifier.createOrNull(loginIdentifier))
             .ifPresentOrElse(
                 userAccount -> mOperationUsageEventService.recordUserEvent(
                     EOperationEventType.SIGN_IN_FAILED,

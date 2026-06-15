@@ -4,7 +4,7 @@ public final class UserAccountId {
 
     private final long mValue;
 
-    public UserAccountId(long value) {
+    private UserAccountId(long value) {
         if (value <= 0L) {
             throw new IllegalArgumentException("value must be positive.");
         }
@@ -12,12 +12,16 @@ public final class UserAccountId {
         mValue = value;
     }
 
+    public static UserAccountId of(long value) {
+        return new UserAccountId(value);
+    }
+
     public static UserAccountId from(Long valueOrNull) {
         if (valueOrNull == null) {
             throw new IllegalArgumentException("valueOrNull must not be null.");
         }
 
-        return new UserAccountId(valueOrNull);
+        return UserAccountId.of(valueOrNull);
     }
 
     public long getValue() {

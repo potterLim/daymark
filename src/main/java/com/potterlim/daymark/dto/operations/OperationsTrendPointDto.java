@@ -34,9 +34,19 @@ public final class OperationsTrendPointDto {
         OperationsTrendRawPointDto operationsTrendRawPointDto,
         int pointIndex,
         int pointCount,
-        long maximumUserCount,
-        long maximumExportCount
+        OperationsTrendScale operationsTrendScale
     ) {
+        if (operationsTrendRawPointDto == null) {
+            throw new IllegalArgumentException("operationsTrendRawPointDto must not be null.");
+        }
+
+        if (operationsTrendScale == null) {
+            throw new IllegalArgumentException("operationsTrendScale must not be null.");
+        }
+
+        long maximumUserCount = operationsTrendScale.getMaximumUserCount();
+        long maximumExportCount = operationsTrendScale.getMaximumExportCount();
+
         mWeekStartDate = operationsTrendRawPointDto.getWeekStartDate();
         mWeekEndDate = operationsTrendRawPointDto.getWeekEndDate();
         mTotalRegisteredUsers = operationsTrendRawPointDto.getTotalRegisteredUsers();
@@ -99,7 +109,7 @@ public final class OperationsTrendPointDto {
     }
 
     public long getExportCount() {
-        return mMarkdownExportedCount + mPdfExportViewedCount;
+        return Math.addExact(mMarkdownExportedCount, mPdfExportViewedCount);
     }
 
     public int getActiveUserBarPercent() {

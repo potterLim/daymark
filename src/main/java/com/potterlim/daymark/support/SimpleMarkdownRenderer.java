@@ -26,7 +26,7 @@ public class SimpleMarkdownRenderer {
         List<String> paragraphLines = new ArrayList<>();
         boolean isListOpen = false;
 
-        for (String line : splitLines(markdownTextOrNull)) {
+        for (String line : DaymarkTextLines.splitLines(markdownTextOrNull)) {
             if (line.isBlank()) {
                 flushParagraph(htmlBuilder, paragraphLines);
                 if (isListOpen) {
@@ -137,7 +137,4 @@ public class SimpleMarkdownRenderer {
         paragraphLines.clear();
     }
 
-    private static String[] splitLines(String text) {
-        return text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
-    }
 }

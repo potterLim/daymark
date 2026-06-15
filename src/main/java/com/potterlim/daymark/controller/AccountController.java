@@ -1,7 +1,9 @@
 package com.potterlim.daymark.controller;
 
 import com.potterlim.daymark.dto.auth.ChangePasswordRequestDto;
+import com.potterlim.daymark.dto.auth.PasswordChangeCommand;
 import com.potterlim.daymark.entity.UserAccount;
+import com.potterlim.daymark.identity.LoginIdentifier;
 import com.potterlim.daymark.service.IUserAccountService;
 import com.potterlim.daymark.service.InvalidCurrentPasswordException;
 import jakarta.validation.Valid;
@@ -27,7 +29,7 @@ public class AccountController {
     public String showAccountPage(@AuthenticationPrincipal UserAccount userAccount, Model model) {
         UserAccount currentUserAccount = findCurrentUserAccount(userAccount);
 
-        model.addAttribute("accountWorkspaceId", currentUserAccount.getUsername());
+        model.addAttribute("accountWorkspaceId", currentUserAccount.getWorkspaceId().getValue());
         model.addAttribute("accountEmailAddress", currentUserAccount.getEmailAddress());
         model.addAttribute("accountCreatedAt", currentUserAccount.getCreatedAt());
         return "account/index";
@@ -62,11 +64,11 @@ public class AccountController {
         }
 
         try {
-            mUserAccountService.changePassword(
+            mUserAccountService.changePassword(PasswordChangeCommand.createFromRawInput(
                 userAccount.getUserAccountId(),
                 changePasswordRequestDto.getCurrentPassword(),
                 changePasswordRequestDto.getNewPassword()
-            );
+            ));
         } catch (InvalidCurrentPasswordException invalidCurrentPasswordException) {
             bindingResult.rejectValue("currentPassword", "account.currentPassword", "현재 비밀번호가 올바르지 않습니다.");
             return "account/password";
@@ -77,7 +79,7 @@ public class AccountController {
     }
 
     private UserAccount findCurrentUserAccount(UserAccount userAccount) {
-        return mUserAccountService.findUserAccountByLoginIdentifier(userAccount.getUsername())
+        return mUserAccountService.findUserAccountByLoginIdentifier(LoginIdentifier.createOrNull(userAccount.getUsername()))
             .orElseThrow(() -> new IllegalStateException("Authenticated user account not found."));
     }
 }

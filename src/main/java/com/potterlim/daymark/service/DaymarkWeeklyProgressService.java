@@ -1,7 +1,6 @@
 package com.potterlim.daymark.service;
 
 import java.time.Clock;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -12,6 +11,11 @@ import com.potterlim.daymark.dto.daymark.DaymarkDayStatusDto;
 import com.potterlim.daymark.dto.daymark.WeeklyProgressItemDto;
 import com.potterlim.daymark.dto.daymark.WeeklyProgressViewDto;
 import com.potterlim.daymark.entity.UserAccountId;
+import com.potterlim.daymark.support.DaymarkEntryDate;
+import com.potterlim.daymark.support.DaymarkGoalCompletionCounts;
+import com.potterlim.daymark.support.DaymarkTextLines;
+import com.potterlim.daymark.support.DaymarkWeekOffset;
+import com.potterlim.daymark.support.DaymarkWeekRange;
 import com.potterlim.daymark.support.EDaymarkSectionType;
 import org.springframework.stereotype.Service;
 
@@ -28,27 +32,39 @@ public class DaymarkWeeklyProgressService {
         mClock = clock;
     }
 
-    public WeeklyProgressViewDto buildWeeklyProgressView(int weekOffset, UserAccountId userAccountId) {
-        LocalDate currentDate = LocalDate.now(mClock);
-        LocalDate referenceDate = currentDate.plusDays((long) weekOffset * 7L);
-        LocalDate startDate = resolveWeekStartDate(referenceDate);
-        WeeklyProgressAccumulator weeklyProgressAccumulator = buildWeeklyProgressAccumulator(referenceDate, userAccountId);
+    public WeeklyProgressViewDto buildWeeklyProgressView(DaymarkWeekOffset weekOffset, UserAccountId userAccountId) {
+        if (weekOffset == null) {
+            throw new IllegalArgumentException("weekOffset must not be null.");
+        }
 
-        return new WeeklyProgressViewDto(
-            weeklyProgressAccumulator.getWeeklyProgressItems(),
-            weeklyProgressAccumulator.getWeeklyAchievedGoalCount(),
-            weeklyProgressAccumulator.getWeeklyTotalGoalCount(),
-            calculateCompletionPercent(
-                weeklyProgressAccumulator.getWeeklyAchievedGoalCount(),
-                weeklyProgressAccumulator.getWeeklyTotalGoalCount()
-            ),
-            weekOffset,
-            buildWeekRangeLabel(startDate),
-            buildWeekRangeLabel(resolveWeekStartDate(currentDate)),
-            buildWeekRangeLabel(startDate.minusDays(7L)),
-            buildWeekRangeLabel(startDate.plusDays(7L)),
-            currentDate
+        if (userAccountId == null) {
+            throw new IllegalArgumentException("userAccountId must not be null.");
+        }
+
+        LocalDate currentDate = LocalDate.now(mClock);
+        LocalDate referenceDate = weekOffset.calculateReferenceDateFrom(currentDate);
+        DaymarkWeekRange selectedWeekRange = DaymarkWeekRange.containing(referenceDate);
+        DaymarkWeekRange currentWeekRange = DaymarkWeekRange.containing(currentDate);
+        WeeklyProgressAccumulator weeklyProgressAccumulator = buildWeeklyProgressAccumulator(
+            referenceDate,
+            userAccountId
         );
+        DaymarkGoalCompletionCounts weeklyGoalCompletionCounts =
+            weeklyProgressAccumulator.getWeeklyGoalCompletionCounts();
+
+        return WeeklyProgressViewDto.createBuilder(weekOffset)
+            .setWeeklyProgressItems(weeklyProgressAccumulator.getWeeklyProgressItems())
+            .setWeeklyGoalCompletionCounts(weeklyGoalCompletionCounts)
+            .setRangeLabel(buildWeekRangeLabel(selectedWeekRange))
+            .setCurrentWeekRangeLabel(buildWeekRangeLabel(currentWeekRange))
+            .setPreviousWeekRangeLabel(buildWeekRangeLabel(
+                DaymarkWeekRange.containing(selectedWeekRange.getStartDate().minusDays(7L))
+            ))
+            .setNextWeekRangeLabel(buildWeekRangeLabel(
+                DaymarkWeekRange.containing(selectedWeekRange.getStartDate().plusDays(7L))
+            ))
+            .setDefaultDate(currentDate)
+            .build();
     }
 
     private WeeklyProgressAccumulator buildWeeklyProgressAccumulator(
@@ -57,19 +73,22 @@ public class DaymarkWeeklyProgressService {
     ) {
         WeeklyProgressAccumulator weeklyProgressAccumulator = new WeeklyProgressAccumulator();
 
-        for (DaymarkDayStatusDto daymarkDayStatusDto : mDaymarkService.listWeek(referenceDate, userAccountId)) {
-            List<String> goals = splitNonBlankLines(
-                mDaymarkService.readSection(daymarkDayStatusDto.getDate(), userAccountId, EDaymarkSectionType.GOALS)
+        for (DaymarkDayStatusDto daymarkDayStatusDto : mDaymarkService.listWeek(
+            DaymarkEntryDate.of(referenceDate),
+            userAccountId
+        )) {
+            DaymarkEntryDate entryDate = DaymarkEntryDate.of(daymarkDayStatusDto.getDate());
+            List<String> goalLines = DaymarkTextLines.splitNonBlankTrimmedLines(
+                mDaymarkService.readSection(entryDate, userAccountId, EDaymarkSectionType.GOALS)
             );
-            int achievedGoalCount = countAchievedGoals(daymarkDayStatusDto, goals, userAccountId);
-            int totalGoalCount = goals.size();
+            int achievedGoalCount = countAchievedGoals(daymarkDayStatusDto, goalLines, userAccountId);
+            DaymarkGoalCompletionCounts goalCompletionCounts =
+                DaymarkGoalCompletionCounts.of(achievedGoalCount, goalLines.size());
 
             weeklyProgressAccumulator.addProgressItem(
-                new WeeklyProgressItemDto(
+                WeeklyProgressItemDto.fromGoalCompletionCounts(
                     daymarkDayStatusDto.getDate(),
-                    achievedGoalCount,
-                    totalGoalCount,
-                    calculateCompletionPercent(achievedGoalCount, totalGoalCount)
+                    goalCompletionCounts
                 )
             );
         }
@@ -79,17 +98,19 @@ public class DaymarkWeeklyProgressService {
 
     private int countAchievedGoals(
         DaymarkDayStatusDto daymarkDayStatusDto,
-        List<String> goals,
+        List<String> goalLines,
         UserAccountId userAccountId
     ) {
         if (!daymarkDayStatusDto.hasEveningEntry()) {
             return 0;
         }
 
-        Set<String> checkedGoalTexts = new HashSet<>(mDaymarkService.readCheckedGoalTexts(daymarkDayStatusDto.getDate(), userAccountId));
+        Set<String> checkedGoalTexts = new HashSet<>(
+            mDaymarkService.readCheckedGoalTexts(DaymarkEntryDate.of(daymarkDayStatusDto.getDate()), userAccountId)
+        );
         int achievedGoalCount = 0;
-        for (String goal : goals) {
-            if (checkedGoalTexts.contains(goal)) {
+        for (String goalLine : goalLines) {
+            if (checkedGoalTexts.contains(goalLine)) {
                 achievedGoalCount++;
             }
         }
@@ -97,59 +118,33 @@ public class DaymarkWeeklyProgressService {
         return achievedGoalCount;
     }
 
-    private static int calculateCompletionPercent(int achievedGoalCount, int totalGoalCount) {
-        if (totalGoalCount == 0) {
-            return 0;
-        }
-
-        return (int) ((achievedGoalCount / (double) totalGoalCount) * 100);
-    }
-
-    private static LocalDate resolveWeekStartDate(LocalDate referenceDate) {
-        return referenceDate.minusDays(referenceDate.getDayOfWeek().getValue() - DayOfWeek.MONDAY.getValue());
-    }
-
-    private static String buildWeekRangeLabel(LocalDate startDate) {
-        return formatDisplayDate(startDate) + " ~ " + formatDisplayDate(startDate.plusDays(6L));
+    private static String buildWeekRangeLabel(DaymarkWeekRange weekRange) {
+        return formatDisplayDate(weekRange.getStartDate()) + " ~ " + formatDisplayDate(weekRange.getEndDate());
     }
 
     private static String formatDisplayDate(LocalDate date) {
         return DISPLAY_DATE_FORMATTER.format(date);
     }
 
-    private static List<String> splitNonBlankLines(String textOrNull) {
-        if (textOrNull == null || textOrNull.isBlank()) {
-            return List.of();
-        }
-
-        return textOrNull.lines()
-            .map(String::trim)
-            .filter(line -> !line.isEmpty())
-            .toList();
-    }
-
     private static final class WeeklyProgressAccumulator {
 
         private final List<WeeklyProgressItemDto> mWeeklyProgressItems = new ArrayList<>();
-        private int mWeeklyAchievedGoalCount;
-        private int mWeeklyTotalGoalCount;
+        private DaymarkGoalCompletionCounts mWeeklyGoalCompletionCounts = DaymarkGoalCompletionCounts.empty();
 
         private List<WeeklyProgressItemDto> getWeeklyProgressItems() {
             return mWeeklyProgressItems;
         }
 
-        private int getWeeklyAchievedGoalCount() {
-            return mWeeklyAchievedGoalCount;
-        }
-
-        private int getWeeklyTotalGoalCount() {
-            return mWeeklyTotalGoalCount;
+        private DaymarkGoalCompletionCounts getWeeklyGoalCompletionCounts() {
+            return mWeeklyGoalCompletionCounts;
         }
 
         private void addProgressItem(WeeklyProgressItemDto weeklyProgressItemDto) {
             mWeeklyProgressItems.add(weeklyProgressItemDto);
-            mWeeklyAchievedGoalCount += weeklyProgressItemDto.getAchievedGoalCount();
-            mWeeklyTotalGoalCount += weeklyProgressItemDto.getTotalGoalCount();
+            mWeeklyGoalCompletionCounts = mWeeklyGoalCompletionCounts.plus(DaymarkGoalCompletionCounts.of(
+                weeklyProgressItemDto.getAchievedGoalCount(),
+                weeklyProgressItemDto.getTotalGoalCount()
+            ));
         }
     }
 }

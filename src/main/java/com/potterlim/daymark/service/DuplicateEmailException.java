@@ -1,8 +1,10 @@
 package com.potterlim.daymark.service;
 
+import com.potterlim.daymark.identity.EmailAddress;
+
 public class DuplicateEmailException extends RuntimeException {
 
-    public DuplicateEmailException(String emailAddress) {
-        super("User account already exists with email address: " + emailAddress);
+    public DuplicateEmailException(EmailAddress emailAddress) {
+        super("User account already exists with email address: " + emailAddress.getValue());
     }
 }

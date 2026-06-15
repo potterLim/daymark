@@ -8,10 +8,22 @@ public final class DaymarkDayStatusDto {
     private final boolean mHasMorningEntry;
     private final boolean mHasEveningEntry;
 
-    public DaymarkDayStatusDto(LocalDate date, boolean hasMorningEntry, boolean hasEveningEntry) {
+    private DaymarkDayStatusDto(LocalDate date, boolean hasMorningEntry, boolean hasEveningEntry) {
         mDate = date;
         mHasMorningEntry = hasMorningEntry;
         mHasEveningEntry = hasEveningEntry;
+    }
+
+    public static DaymarkDayStatusDto createMorningAndEvening(LocalDate date) {
+        return new DaymarkDayStatusDto(date, true, true);
+    }
+
+    public static DaymarkDayStatusDto createMorningOnly(LocalDate date) {
+        return new DaymarkDayStatusDto(date, true, false);
+    }
+
+    public static DaymarkDayStatusDto createEveningOnly(LocalDate date) {
+        return new DaymarkDayStatusDto(date, false, true);
     }
 
     public LocalDate getDate() {

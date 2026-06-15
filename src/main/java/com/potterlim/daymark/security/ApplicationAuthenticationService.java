@@ -39,6 +39,14 @@ public class ApplicationAuthenticationService {
         HttpServletRequest httpServletRequest,
         HttpServletResponse httpServletResponse
     ) {
+        if (userName == null || userName.isBlank()) {
+            throw new IllegalArgumentException("userName must not be blank.");
+        }
+
+        if (rawPassword == null) {
+            throw new IllegalArgumentException("rawPassword must not be null.");
+        }
+
         UsernamePasswordAuthenticationToken authenticationRequest =
             UsernamePasswordAuthenticationToken.unauthenticated(userName, rawPassword);
         Authentication authentication = mAuthenticationManager.authenticate(authenticationRequest);
@@ -51,6 +59,10 @@ public class ApplicationAuthenticationService {
         HttpServletRequest httpServletRequest,
         HttpServletResponse httpServletResponse
     ) {
+        if (userAccount == null) {
+            throw new IllegalArgumentException("userAccount must not be null.");
+        }
+
         Authentication authentication =
             new UsernamePasswordAuthenticationToken(userAccount, userAccount.getPassword(), userAccount.getAuthorities());
         saveAuthentication(authentication, httpServletRequest, httpServletResponse);
@@ -61,6 +73,8 @@ public class ApplicationAuthenticationService {
         HttpServletRequest httpServletRequest,
         HttpServletResponse httpServletResponse
     ) {
+        validateRequestContext(httpServletRequest, httpServletResponse);
+
         saveSecurityContext(SecurityContextHolder.createEmptyContext(), httpServletRequest, httpServletResponse);
     }
 
@@ -69,6 +83,12 @@ public class ApplicationAuthenticationService {
         HttpServletRequest httpServletRequest,
         HttpServletResponse httpServletResponse
     ) {
+        if (authentication == null) {
+            throw new IllegalArgumentException("authentication must not be null.");
+        }
+
+        validateRequestContext(httpServletRequest, httpServletResponse);
+
         SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
         securityContext.setAuthentication(authentication);
         saveSecurityContext(securityContext, httpServletRequest, httpServletResponse);
@@ -81,5 +101,18 @@ public class ApplicationAuthenticationService {
     ) {
         SecurityContextHolder.setContext(securityContext);
         mSecurityContextRepository.saveContext(securityContext, httpServletRequest, httpServletResponse);
+    }
+
+    private static void validateRequestContext(
+        HttpServletRequest httpServletRequest,
+        HttpServletResponse httpServletResponse
+    ) {
+        if (httpServletRequest == null) {
+            throw new IllegalArgumentException("httpServletRequest must not be null.");
+        }
+
+        if (httpServletResponse == null) {
+            throw new IllegalArgumentException("httpServletResponse must not be null.");
+        }
     }
 }

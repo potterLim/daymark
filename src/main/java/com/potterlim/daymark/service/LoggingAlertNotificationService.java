@@ -12,7 +12,11 @@ public class LoggingAlertNotificationService implements IAlertNotificationServic
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggingAlertNotificationService.class);
 
     @Override
-    public void sendOperationalAlert(String alertType, String message) {
-        LOGGER.error("OPERATIONS_ALERT alertType={} message={}", alertType, message);
+    public void sendOperationalAlert(OperationalAlert operationalAlert) {
+        LOGGER.error(
+            "OPERATIONS_ALERT alertType={} message={}",
+            operationalAlert.getAlertType().getCode(),
+            operationalAlert.getMessage()
+        );
     }
 }

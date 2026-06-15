@@ -1,6 +1,7 @@
 package com.potterlim.daymark.dto.daymark;
 
 import java.time.LocalDate;
+import com.potterlim.daymark.support.DaymarkGoalCompletionCounts;
 
 public final class WeeklyProgressItemDto {
 
@@ -9,16 +10,26 @@ public final class WeeklyProgressItemDto {
     private final int mTotalGoalCount;
     private final int mCompletionPercent;
 
-    public WeeklyProgressItemDto(
-        LocalDate date,
-        int achievedGoalCount,
-        int totalGoalCount,
-        int completionPercent
-    ) {
+    private WeeklyProgressItemDto(LocalDate date, DaymarkGoalCompletionCounts goalCompletionCounts) {
         mDate = date;
-        mAchievedGoalCount = achievedGoalCount;
-        mTotalGoalCount = totalGoalCount;
-        mCompletionPercent = completionPercent;
+        mAchievedGoalCount = goalCompletionCounts.getCompletedGoalCount();
+        mTotalGoalCount = goalCompletionCounts.getTotalGoalCount();
+        mCompletionPercent = goalCompletionCounts.calculateCompletionPercent();
+    }
+
+    public static WeeklyProgressItemDto fromGoalCompletionCounts(
+        LocalDate date,
+        DaymarkGoalCompletionCounts goalCompletionCounts
+    ) {
+        if (date == null) {
+            throw new IllegalArgumentException("date must not be null.");
+        }
+
+        if (goalCompletionCounts == null) {
+            throw new IllegalArgumentException("goalCompletionCounts must not be null.");
+        }
+
+        return new WeeklyProgressItemDto(date, goalCompletionCounts);
     }
 
     public LocalDate getDate() {

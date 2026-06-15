@@ -3,9 +3,12 @@ package com.potterlim.daymark.security;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
+import com.potterlim.daymark.dto.auth.GoogleIdentityConnectionCommand;
 import com.potterlim.daymark.dto.auth.GoogleRegistrationSession;
 import com.potterlim.daymark.entity.EOperationEventType;
 import com.potterlim.daymark.entity.UserAccount;
+import com.potterlim.daymark.identity.EmailAddress;
+import com.potterlim.daymark.identity.GoogleSubject;
 import com.potterlim.daymark.service.IUserAccountService;
 import com.potterlim.daymark.service.OperationUsageEventService;
 import jakarta.servlet.ServletException;
@@ -49,11 +52,12 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
             return;
         }
 
+        GoogleSubject googleSubject = GoogleSubject.create(googleIdentity.subject());
+        EmailAddress emailAddress = EmailAddress.create(googleIdentity.emailAddress());
         Optional<UserAccount> userAccountOrEmpty =
-            mUserAccountService.findUserAccountByGoogleSubject(googleIdentity.subject())
-                .or(() -> mUserAccountService.connectGoogleIdentityByEmailAddress(
-                    googleIdentity.emailAddress(),
-                    googleIdentity.subject()
+            mUserAccountService.findUserAccountByGoogleSubject(googleSubject)
+                .or(() -> mUserAccountService.connectGoogleIdentity(
+                    GoogleIdentityConnectionCommand.of(emailAddress, googleSubject)
                 ));
         if (userAccountOrEmpty.isPresent()) {
             mApplicationAuthenticationService.authenticateUserAccount(
@@ -86,21 +90,21 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
 
     private static GoogleIdentity resolveGoogleIdentity(Authentication authentication) {
         if (!(authentication.getPrincipal() instanceof OAuth2User oAuth2User)) {
-            return GoogleIdentity.unusable();
+            return GoogleIdentity.createUnusable();
         }
 
-        Map<String, Object> attributes = oAuth2User.getAttributes();
-        String subject = readString(attributes, "sub");
-        String emailAddress = readString(attributes, "email");
-        String displayName = readString(attributes, "name");
-        boolean isEmailVerified = Boolean.TRUE.equals(attributes.get("email_verified"))
-            || "true".equalsIgnoreCase(String.valueOf(attributes.get("email_verified")));
+        Map<String, Object> oauthAttributes = oAuth2User.getAttributes();
+        String subject = readOAuthAttributeValue(oauthAttributes, "sub");
+        String emailAddress = readOAuthAttributeValue(oauthAttributes, "email");
+        String displayName = readOAuthAttributeValue(oauthAttributes, "name");
+        boolean isEmailVerified = Boolean.TRUE.equals(oauthAttributes.get("email_verified"))
+            || "true".equalsIgnoreCase(String.valueOf(oauthAttributes.get("email_verified")));
 
         return new GoogleIdentity(subject, emailAddress, displayName, isEmailVerified);
     }
 
-    private static String readString(Map<String, Object> attributes, String key) {
-        Object valueOrNull = attributes.get(key);
+    private static String readOAuthAttributeValue(Map<String, Object> oauthAttributes, String attributeName) {
+        Object valueOrNull = oauthAttributes.get(attributeName);
         if (valueOrNull == null) {
             return "";
         }
@@ -115,7 +119,7 @@ public class GoogleOAuth2AuthenticationSuccessHandler implements AuthenticationS
         boolean isEmailVerified
     ) {
 
-        private static GoogleIdentity unusable() {
+        private static GoogleIdentity createUnusable() {
             return new GoogleIdentity("", "", "", false);
         }
 

@@ -6,6 +6,7 @@ import com.potterlim.daymark.entity.UserAccount;
 import com.potterlim.daymark.entity.UserAccountId;
 import com.potterlim.daymark.service.DaymarkWeeklyProgressService;
 import com.potterlim.daymark.service.OperationUsageEventService;
+import com.potterlim.daymark.support.DaymarkWeekOffset;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -36,7 +37,10 @@ public class DaymarkWeekController {
     ) {
         UserAccountId userAccountId = userAccount.getUserAccountId();
         mOperationUsageEventService.recordUserEvent(EOperationEventType.WEEKLY_REVIEW_VIEWED, userAccountId);
-        WeeklyProgressViewDto weeklyProgressViewDto = mDaymarkWeeklyProgressService.buildWeeklyProgressView(weekOffset, userAccountId);
+        WeeklyProgressViewDto weeklyProgressViewDto = mDaymarkWeeklyProgressService.buildWeeklyProgressView(
+            DaymarkWeekOffset.of(weekOffset),
+            userAccountId
+        );
 
         model.addAttribute("weeklyProgressItems", weeklyProgressViewDto.getWeeklyProgressItems());
         model.addAttribute("weekAchieved", weeklyProgressViewDto.getWeeklyAchievedGoalCount());

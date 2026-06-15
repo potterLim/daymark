@@ -18,30 +18,22 @@ public final class DaymarkLibraryItemDto {
     private final int mHiddenGoalCount;
     private final List<DaymarkLibraryContentBlockDto> mContentBlocks;
 
-    public DaymarkLibraryItemDto(
-        LocalDate date,
-        boolean hasMorningEntry,
-        boolean hasEveningEntry,
-        int achievedGoalCount,
-        int totalGoalCount,
-        int completionPercent,
-        String excerpt,
-        String markdownText,
-        List<DaymarkLibraryGoalPreviewDto> goalPreviewItems,
-        int hiddenGoalCount,
-        List<DaymarkLibraryContentBlockDto> contentBlocks
-    ) {
-        mDate = date;
-        mHasMorningEntry = hasMorningEntry;
-        mHasEveningEntry = hasEveningEntry;
-        mAchievedGoalCount = achievedGoalCount;
-        mTotalGoalCount = totalGoalCount;
-        mCompletionPercent = completionPercent;
-        mExcerpt = excerpt;
-        mMarkdownText = markdownText;
-        mGoalPreviewItems = List.copyOf(goalPreviewItems);
-        mHiddenGoalCount = hiddenGoalCount;
-        mContentBlocks = List.copyOf(contentBlocks);
+    private DaymarkLibraryItemDto(Builder builder) {
+        mDate = builder.mDate;
+        mHasMorningEntry = builder.mHasMorningEntry;
+        mHasEveningEntry = builder.mHasEveningEntry;
+        mAchievedGoalCount = builder.mAchievedGoalCount;
+        mTotalGoalCount = builder.mTotalGoalCount;
+        mCompletionPercent = builder.mCompletionPercent;
+        mExcerpt = builder.mExcerpt;
+        mMarkdownText = builder.mMarkdownText;
+        mGoalPreviewItems = List.copyOf(builder.mGoalPreviewItems);
+        mHiddenGoalCount = builder.mHiddenGoalCount;
+        mContentBlocks = List.copyOf(builder.mContentBlocks);
+    }
+
+    public static Builder createBuilder(LocalDate date) {
+        return new Builder(date);
     }
 
     public LocalDate getDate() {
@@ -136,5 +128,114 @@ public final class DaymarkLibraryItemDto {
         }
 
         return "저녁 회고";
+    }
+
+    public static final class Builder {
+
+        private final LocalDate mDate;
+        private boolean mHasMorningEntry;
+        private boolean mHasEveningEntry;
+        private int mAchievedGoalCount;
+        private int mTotalGoalCount;
+        private int mCompletionPercent;
+        private String mExcerpt = "";
+        private String mMarkdownText = "";
+        private List<DaymarkLibraryGoalPreviewDto> mGoalPreviewItems = List.of();
+        private int mHiddenGoalCount;
+        private List<DaymarkLibraryContentBlockDto> mContentBlocks = List.of();
+
+        private Builder(LocalDate date) {
+            if (date == null) {
+                throw new IllegalArgumentException("date must not be null.");
+            }
+
+            mDate = date;
+        }
+
+        public Builder markMorningEntryPresent() {
+            mHasMorningEntry = true;
+            return this;
+        }
+
+        public Builder markEveningEntryPresent() {
+            mHasEveningEntry = true;
+            return this;
+        }
+
+        public Builder setAchievedGoalCount(int achievedGoalCount) {
+            mAchievedGoalCount = requireNonNegative(achievedGoalCount, "achievedGoalCount");
+            return this;
+        }
+
+        public Builder setTotalGoalCount(int totalGoalCount) {
+            mTotalGoalCount = requireNonNegative(totalGoalCount, "totalGoalCount");
+            return this;
+        }
+
+        public Builder setCompletionPercent(int completionPercent) {
+            mCompletionPercent = requirePercent(completionPercent, "completionPercent");
+            return this;
+        }
+
+        public Builder setExcerpt(String excerptOrNull) {
+            mExcerpt = excerptOrNull == null ? "" : excerptOrNull;
+            return this;
+        }
+
+        public Builder setMarkdownText(String markdownTextOrNull) {
+            mMarkdownText = markdownTextOrNull == null ? "" : markdownTextOrNull;
+            return this;
+        }
+
+        public Builder setGoalPreviewItems(List<DaymarkLibraryGoalPreviewDto> goalPreviewItems) {
+            if (goalPreviewItems == null) {
+                throw new IllegalArgumentException("goalPreviewItems must not be null.");
+            }
+
+            mGoalPreviewItems = List.copyOf(goalPreviewItems);
+            return this;
+        }
+
+        public Builder setHiddenGoalCount(int hiddenGoalCount) {
+            mHiddenGoalCount = requireNonNegative(hiddenGoalCount, "hiddenGoalCount");
+            return this;
+        }
+
+        public Builder setContentBlocks(List<DaymarkLibraryContentBlockDto> contentBlocks) {
+            if (contentBlocks == null) {
+                throw new IllegalArgumentException("contentBlocks must not be null.");
+            }
+
+            mContentBlocks = List.copyOf(contentBlocks);
+            return this;
+        }
+
+        public DaymarkLibraryItemDto build() {
+            if (mAchievedGoalCount > mTotalGoalCount) {
+                throw new IllegalStateException("achievedGoalCount must not be greater than totalGoalCount.");
+            }
+
+            if (mTotalGoalCount == 0 && mCompletionPercent != 0) {
+                throw new IllegalStateException("completionPercent must be zero when totalGoalCount is zero.");
+            }
+
+            return new DaymarkLibraryItemDto(this);
+        }
+
+        private static int requireNonNegative(int value, String fieldName) {
+            if (value < 0) {
+                throw new IllegalArgumentException(fieldName + " must not be negative.");
+            }
+
+            return value;
+        }
+
+        private static int requirePercent(int value, String fieldName) {
+            if (value < 0 || value > 100) {
+                throw new IllegalArgumentException(fieldName + " must be between 0 and 100.");
+            }
+
+            return value;
+        }
     }
 }

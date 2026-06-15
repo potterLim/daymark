@@ -1,12 +1,18 @@
 package com.potterlim.daymark.service;
 
-import java.time.LocalDate;
 import java.util.List;
 import com.potterlim.daymark.dto.daymark.DaymarkDayStatusDto;
+import com.potterlim.daymark.dto.daymark.EveningReviewSaveCommand;
+import com.potterlim.daymark.dto.daymark.MorningPlanSaveCommand;
 import com.potterlim.daymark.entity.UserAccountId;
+import com.potterlim.daymark.support.DaymarkEntryDate;
 import com.potterlim.daymark.support.EDaymarkSectionType;
 
 public interface IDaymarkService {
+
+    void saveMorningPlan(MorningPlanSaveCommand morningPlanSaveCommand);
+
+    void saveEveningReview(EveningReviewSaveCommand eveningReviewSaveCommand);
 
     /**
      * Reads the content stored under a given Daymark section.
@@ -16,22 +22,7 @@ public interface IDaymarkService {
      *
      * @return The section body with list prefixes removed for form editing.
      */
-    String readSection(LocalDate date, UserAccountId userAccountId, EDaymarkSectionType daymarkSectionType);
-
-    /**
-     * Writes a Daymark section for a specific user and date.
-     *
-     * <p>Preconditions: the date, user account id, and section type must already be validated by
-     * the caller. Blank bodies clear the section and do not create empty entries.</p>
-     *
-     * @return Nothing. Successful execution updates the persisted Daymark entry.
-     */
-    void writeSection(
-        LocalDate date,
-        UserAccountId userAccountId,
-        EDaymarkSectionType daymarkSectionType,
-        String bodyOrNull
-    );
+    String readSection(DaymarkEntryDate entryDate, UserAccountId userAccountId, EDaymarkSectionType daymarkSectionType);
 
     /**
      * Lists the available Daymark entries for the week that contains the reference date.
@@ -41,7 +32,7 @@ public interface IDaymarkService {
      *
      * @return Ordered day status entries for the matching week.
      */
-    List<DaymarkDayStatusDto> listWeek(LocalDate referenceDate, UserAccountId userAccountId);
+    List<DaymarkDayStatusDto> listWeek(DaymarkEntryDate referenceEntryDate, UserAccountId userAccountId);
 
     /**
      * Reads the reconstructed markdown content for preview rendering and detailed analysis.
@@ -52,7 +43,7 @@ public interface IDaymarkService {
      * @return The full markdown representation of the stored entry, or an empty string when the
      * entry is missing.
      */
-    String readEntryMarkdownContent(LocalDate date, UserAccountId userAccountId);
+    String readEntryMarkdownContent(DaymarkEntryDate entryDate, UserAccountId userAccountId);
 
     /**
      * Reads the goal texts that are marked as completed in the evening section.
@@ -62,5 +53,5 @@ public interface IDaymarkService {
      *
      * @return Checked goal texts in the order they appear in the saved evening checklist.
      */
-    List<String> readCheckedGoalTexts(LocalDate date, UserAccountId userAccountId);
+    List<String> readCheckedGoalTexts(DaymarkEntryDate entryDate, UserAccountId userAccountId);
 }

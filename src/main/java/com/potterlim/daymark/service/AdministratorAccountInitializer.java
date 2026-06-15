@@ -1,6 +1,7 @@
 package com.potterlim.daymark.service;
 
 import com.potterlim.daymark.entity.UserAccount;
+import com.potterlim.daymark.identity.WorkspaceId;
 import com.potterlim.daymark.repository.IUserAccountRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -28,8 +29,8 @@ public class AdministratorAccountInitializer implements ApplicationRunner {
 
     @Transactional
     public void promoteConfiguredAdministratorAccounts() {
-        for (String administratorWorkspaceId : mAdministratorWorkspaceIdPolicy.listAdministratorWorkspaceIds()) {
-            mUserAccountRepository.findByUserNameIgnoringCase(administratorWorkspaceId)
+        for (WorkspaceId administratorWorkspaceId : mAdministratorWorkspaceIdPolicy.listAdministratorWorkspaceIds()) {
+            mUserAccountRepository.findByUserNameIgnoringCase(administratorWorkspaceId.getValue())
                 .filter(userAccount -> !userAccount.isAdministrator())
                 .ifPresent(this::grantAdministratorRole);
         }

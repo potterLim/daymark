@@ -53,7 +53,7 @@ public class DaymarkApplicationProperties {
         }
 
         public List<String> getAdministratorWorkspaceIds() {
-            return mAdministratorWorkspaceIds;
+            return List.copyOf(mAdministratorWorkspaceIds);
         }
 
         public void setAdministratorWorkspaceIds(List<String> administratorWorkspaceIds) {
@@ -62,7 +62,7 @@ public class DaymarkApplicationProperties {
                 return;
             }
 
-            mAdministratorWorkspaceIds = administratorWorkspaceIds;
+            mAdministratorWorkspaceIds = new ArrayList<>(administratorWorkspaceIds);
         }
 
         public ProductionReadinessProperties getProductionReadiness() {
@@ -86,24 +86,24 @@ public class DaymarkApplicationProperties {
             return mIsEnabled;
         }
 
-        public void setEnabled(boolean enabled) {
-            mIsEnabled = enabled;
+        public void setEnabled(boolean isEnabled) {
+            mIsEnabled = isEnabled;
         }
 
         public boolean isRequireAlertWebhook() {
             return mShouldRequireAlertWebhook;
         }
 
-        public void setRequireAlertWebhook(boolean requireAlertWebhook) {
-            mShouldRequireAlertWebhook = requireAlertWebhook;
+        public void setRequireAlertWebhook(boolean shouldRequireAlertWebhook) {
+            mShouldRequireAlertWebhook = shouldRequireAlertWebhook;
         }
 
         public boolean isRequireSecureSessionCookie() {
             return mShouldRequireSecureSessionCookie;
         }
 
-        public void setRequireSecureSessionCookie(boolean requireSecureSessionCookie) {
-            mShouldRequireSecureSessionCookie = requireSecureSessionCookie;
+        public void setRequireSecureSessionCookie(boolean shouldRequireSecureSessionCookie) {
+            mShouldRequireSecureSessionCookie = shouldRequireSecureSessionCookie;
         }
 
         public int getMinimumRememberMeKeyLength() {
@@ -127,8 +127,8 @@ public class DaymarkApplicationProperties {
             return mIsEnabled;
         }
 
-        public void setEnabled(boolean enabled) {
-            mIsEnabled = enabled;
+        public void setEnabled(boolean isEnabled) {
+            mIsEnabled = isEnabled;
         }
 
         public String getCron() {
@@ -178,8 +178,8 @@ public class DaymarkApplicationProperties {
             return mIsRememberMeCookieSecure;
         }
 
-        public void setRememberMeCookieSecure(boolean rememberMeCookieSecure) {
-            mIsRememberMeCookieSecure = rememberMeCookieSecure;
+        public void setRememberMeCookieSecure(boolean isRememberMeCookieSecure) {
+            mIsRememberMeCookieSecure = isRememberMeCookieSecure;
         }
 
         public int getRememberMeTokenValiditySeconds() {

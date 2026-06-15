@@ -1,16 +1,8 @@
 package com.potterlim.daymark.dto.operations;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.function.ToDoubleFunction;
-import com.potterlim.daymark.entity.WeeklyOperationMetricSnapshot;
-import com.potterlim.daymark.service.WeeklyOperationsSummary;
 
 public final class OperationsTrendViewDto {
-
-    private static final int MAXIMUM_TREND_POINT_COUNT = 24;
 
     private final List<OperationsTrendPointDto> mTrendPoints;
     private final String mActiveUserLinePoints;
@@ -23,7 +15,7 @@ public final class OperationsTrendViewDto {
     private final String mGoalCompletionDeltaText;
     private final boolean mHasPreviousTrendPoint;
 
-    private OperationsTrendViewDto(
+    OperationsTrendViewDto(
         List<OperationsTrendPointDto> trendPoints,
         String activeUserLinePoints,
         String writingUserLinePoints,
@@ -35,72 +27,20 @@ public final class OperationsTrendViewDto {
         String goalCompletionDeltaText,
         boolean hasPreviousTrendPoint
     ) {
+        if (trendPoints == null) {
+            throw new IllegalArgumentException("trendPoints must not be null.");
+        }
+
         mTrendPoints = List.copyOf(trendPoints);
-        mActiveUserLinePoints = activeUserLinePoints;
-        mWritingUserLinePoints = writingUserLinePoints;
-        mNewUserLinePoints = newUserLinePoints;
-        mGoalCompletionLinePoints = goalCompletionLinePoints;
-        mActiveUserDeltaText = activeUserDeltaText;
-        mWritingUserDeltaText = writingUserDeltaText;
-        mExportDeltaText = exportDeltaText;
-        mGoalCompletionDeltaText = goalCompletionDeltaText;
+        mActiveUserLinePoints = defaultToEmpty(activeUserLinePoints);
+        mWritingUserLinePoints = defaultToEmpty(writingUserLinePoints);
+        mNewUserLinePoints = defaultToEmpty(newUserLinePoints);
+        mGoalCompletionLinePoints = defaultToEmpty(goalCompletionLinePoints);
+        mActiveUserDeltaText = defaultToEmpty(activeUserDeltaText);
+        mWritingUserDeltaText = defaultToEmpty(writingUserDeltaText);
+        mExportDeltaText = defaultToEmpty(exportDeltaText);
+        mGoalCompletionDeltaText = defaultToEmpty(goalCompletionDeltaText);
         mHasPreviousTrendPoint = hasPreviousTrendPoint;
-    }
-
-    public static OperationsTrendViewDto create(
-        List<WeeklyOperationMetricSnapshot> recentWeeklySnapshots,
-        WeeklyOperationsSummary currentWeeklySummary
-    ) {
-        if (recentWeeklySnapshots == null) {
-            throw new IllegalArgumentException("recentWeeklySnapshots must not be null.");
-        }
-
-        if (currentWeeklySummary == null) {
-            throw new IllegalArgumentException("currentWeeklySummary must not be null.");
-        }
-
-        List<OperationsTrendRawPointDto> rawTrendPoints = createRawTrendPoints(
-            recentWeeklySnapshots,
-            currentWeeklySummary
-        );
-        long maximumUserCount = calculateMaximumUserCount(rawTrendPoints);
-        long maximumExportCount = calculateMaximumExportCount(rawTrendPoints);
-        List<OperationsTrendPointDto> trendPoints = createTrendPoints(
-            rawTrendPoints,
-            maximumUserCount,
-            maximumExportCount
-        );
-
-        OperationsTrendPointDto latestTrendPoint = trendPoints.get(trendPoints.size() - 1);
-        OperationsTrendPointDto previousTrendPointOrNull = null;
-        if (trendPoints.size() > 1) {
-            previousTrendPointOrNull = trendPoints.get(trendPoints.size() - 2);
-        }
-
-        return new OperationsTrendViewDto(
-            trendPoints,
-            buildLinePoints(trendPoints, OperationsTrendPointDto::getActiveUserYAxisCoordinate),
-            buildLinePoints(trendPoints, OperationsTrendPointDto::getWritingUserYAxisCoordinate),
-            buildLinePoints(trendPoints, OperationsTrendPointDto::getNewUserYAxisCoordinate),
-            buildLinePoints(trendPoints, OperationsTrendPointDto::getGoalCompletionYAxisCoordinate),
-            formatLongDelta(
-                latestTrendPoint.getWeeklyActiveUsers(),
-                readPreviousWeeklyActiveUsersOrNull(previousTrendPointOrNull)
-            ),
-            formatLongDelta(
-                latestTrendPoint.getWeeklyWritingUsers(),
-                readPreviousWeeklyWritingUsersOrNull(previousTrendPointOrNull)
-            ),
-            formatLongDelta(
-                latestTrendPoint.getExportCount(),
-                readPreviousExportCountOrNull(previousTrendPointOrNull)
-            ),
-            formatPercentPointDelta(
-                latestTrendPoint.getGoalCompletionRatePercent(),
-                readPreviousGoalCompletionRatePercentOrNull(previousTrendPointOrNull)
-            ),
-            previousTrendPointOrNull != null
-        );
     }
 
     public List<OperationsTrendPointDto> getTrendPoints() {
@@ -143,144 +83,11 @@ public final class OperationsTrendViewDto {
         return mHasPreviousTrendPoint;
     }
 
-    private static List<OperationsTrendRawPointDto> createRawTrendPoints(
-        List<WeeklyOperationMetricSnapshot> recentWeeklySnapshots,
-        WeeklyOperationsSummary currentWeeklySummary
-    ) {
-        List<OperationsTrendRawPointDto> rawTrendPoints = new ArrayList<>();
-        for (WeeklyOperationMetricSnapshot weeklyOperationMetricSnapshot : recentWeeklySnapshots) {
-            boolean isCurrentWeekSnapshot = weeklyOperationMetricSnapshot.getWeekStartDate()
-                .equals(currentWeeklySummary.getWeekStartDate());
-
-            if (!isCurrentWeekSnapshot) {
-                rawTrendPoints.add(
-                    OperationsTrendRawPointDto.createFromSnapshot(weeklyOperationMetricSnapshot)
-                );
-            }
+    private static String defaultToEmpty(String valueOrNull) {
+        if (valueOrNull == null) {
+            return "";
         }
 
-        rawTrendPoints.add(OperationsTrendRawPointDto.createFromSummary(currentWeeklySummary));
-        rawTrendPoints.sort(Comparator.comparing(OperationsTrendRawPointDto::getWeekStartDate));
-
-        if (rawTrendPoints.size() <= MAXIMUM_TREND_POINT_COUNT) {
-            return rawTrendPoints;
-        }
-
-        return new ArrayList<>(rawTrendPoints.subList(
-            rawTrendPoints.size() - MAXIMUM_TREND_POINT_COUNT,
-            rawTrendPoints.size()
-        ));
-    }
-
-    private static long calculateMaximumUserCount(List<OperationsTrendRawPointDto> rawTrendPoints) {
-        long maximumUserCount = 1L;
-        for (OperationsTrendRawPointDto rawTrendPoint : rawTrendPoints) {
-            maximumUserCount = Math.max(maximumUserCount, rawTrendPoint.getWeeklyActiveUsers());
-            maximumUserCount = Math.max(maximumUserCount, rawTrendPoint.getWeeklyWritingUsers());
-            maximumUserCount = Math.max(maximumUserCount, rawTrendPoint.getNewlyRegisteredUsers());
-        }
-
-        return maximumUserCount;
-    }
-
-    private static long calculateMaximumExportCount(List<OperationsTrendRawPointDto> rawTrendPoints) {
-        long maximumExportCount = 1L;
-        for (OperationsTrendRawPointDto rawTrendPoint : rawTrendPoints) {
-            maximumExportCount = Math.max(maximumExportCount, rawTrendPoint.getExportCount());
-        }
-
-        return maximumExportCount;
-    }
-
-    private static List<OperationsTrendPointDto> createTrendPoints(
-        List<OperationsTrendRawPointDto> rawTrendPoints,
-        long maximumUserCount,
-        long maximumExportCount
-    ) {
-        List<OperationsTrendPointDto> trendPoints = new ArrayList<>();
-        for (int pointIndex = 0; pointIndex < rawTrendPoints.size(); pointIndex += 1) {
-            trendPoints.add(new OperationsTrendPointDto(
-                rawTrendPoints.get(pointIndex),
-                pointIndex,
-                rawTrendPoints.size(),
-                maximumUserCount,
-                maximumExportCount
-            ));
-        }
-
-        return trendPoints;
-    }
-
-    private static String buildLinePoints(
-        List<OperationsTrendPointDto> trendPoints,
-        ToDoubleFunction<OperationsTrendPointDto> yAxisCoordinateReader
-    ) {
-        List<String> linePoints = new ArrayList<>();
-        for (OperationsTrendPointDto trendPoint : trendPoints) {
-            linePoints.add(String.format(
-                Locale.US,
-                "%.1f,%.1f",
-                trendPoint.getXAxisCoordinate(),
-                yAxisCoordinateReader.applyAsDouble(trendPoint)
-            ));
-        }
-
-        return String.join(" ", linePoints);
-    }
-
-    private static String formatLongDelta(long currentValue, Long previousValueOrNull) {
-        if (previousValueOrNull == null) {
-            return "-";
-        }
-
-        long delta = currentValue - previousValueOrNull;
-        if (delta >= 0L) {
-            return "+" + delta;
-        }
-
-        return String.valueOf(delta);
-    }
-
-    private static String formatPercentPointDelta(double currentValue, Double previousValueOrNull) {
-        if (previousValueOrNull == null) {
-            return "-";
-        }
-
-        double delta = currentValue - previousValueOrNull;
-        return String.format(Locale.US, "%+.1fp", delta);
-    }
-
-    private static Long readPreviousWeeklyActiveUsersOrNull(OperationsTrendPointDto previousTrendPointOrNull) {
-        if (previousTrendPointOrNull == null) {
-            return null;
-        }
-
-        return previousTrendPointOrNull.getWeeklyActiveUsers();
-    }
-
-    private static Long readPreviousWeeklyWritingUsersOrNull(OperationsTrendPointDto previousTrendPointOrNull) {
-        if (previousTrendPointOrNull == null) {
-            return null;
-        }
-
-        return previousTrendPointOrNull.getWeeklyWritingUsers();
-    }
-
-    private static Long readPreviousExportCountOrNull(OperationsTrendPointDto previousTrendPointOrNull) {
-        if (previousTrendPointOrNull == null) {
-            return null;
-        }
-
-        return previousTrendPointOrNull.getExportCount();
-    }
-
-    private static Double readPreviousGoalCompletionRatePercentOrNull(
-        OperationsTrendPointDto previousTrendPointOrNull
-    ) {
-        if (previousTrendPointOrNull == null) {
-            return null;
-        }
-
-        return previousTrendPointOrNull.getGoalCompletionRatePercent();
+        return valueOrNull;
     }
 }

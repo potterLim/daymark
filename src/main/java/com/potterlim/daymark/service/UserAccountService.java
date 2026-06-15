@@ -2,12 +2,19 @@ package com.potterlim.daymark.service;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.Locale;
 import java.util.Optional;
+import com.potterlim.daymark.dto.auth.GoogleIdentityConnectionCommand;
+import com.potterlim.daymark.dto.auth.PasswordChangeCommand;
 import com.potterlim.daymark.dto.auth.RegisterGoogleUserAccountCommand;
 import com.potterlim.daymark.dto.auth.RegisterUserAccountCommand;
 import com.potterlim.daymark.entity.UserAccount;
 import com.potterlim.daymark.entity.UserAccountId;
+import com.potterlim.daymark.identity.EmailAddress;
+import com.potterlim.daymark.identity.GoogleSubject;
+import com.potterlim.daymark.identity.LoginIdentifier;
+import com.potterlim.daymark.identity.PasswordHash;
+import com.potterlim.daymark.identity.RawPassword;
+import com.potterlim.daymark.identity.WorkspaceId;
 import com.potterlim.daymark.repository.IUserAccountRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,22 +46,22 @@ public class UserAccountService implements IUserAccountService {
     public UserAccount registerUserAccount(RegisterUserAccountCommand registerUserAccountCommand) {
         validateRegisterUserAccountCommand(registerUserAccountCommand);
 
-        String normalizedUserName = normalizeUserName(registerUserAccountCommand.getUserName());
-        String normalizedEmailAddress = normalizeEmailAddress(registerUserAccountCommand.getEmailAddress());
-        String rawPassword = registerUserAccountCommand.getRawPassword();
+        WorkspaceId workspaceId = registerUserAccountCommand.getWorkspaceId();
+        EmailAddress emailAddress = registerUserAccountCommand.getEmailAddress();
+        RawPassword rawPassword = registerUserAccountCommand.getRawPassword();
 
-        if (mUserAccountRepository.findByUserName(normalizedUserName).isPresent()) {
-            throw new DuplicateUserNameException(normalizedUserName);
+        if (mUserAccountRepository.findByUserName(workspaceId.getValue()).isPresent()) {
+            throw new DuplicateUserNameException(workspaceId);
         }
 
-        if (mUserAccountRepository.findByEmailAddress(normalizedEmailAddress).isPresent()) {
-            throw new DuplicateEmailException(normalizedEmailAddress);
+        if (mUserAccountRepository.findByEmailAddress(emailAddress.getValue()).isPresent()) {
+            throw new DuplicateEmailException(emailAddress);
         }
 
         UserAccount userAccount = UserAccount.createRegularUser(
-            normalizedUserName,
-            normalizedEmailAddress,
-            mPasswordEncoder.encode(rawPassword)
+            workspaceId,
+            emailAddress,
+            PasswordHash.create(mPasswordEncoder.encode(rawPassword.getValue()))
         );
         grantAdministratorRoleIfConfigured(userAccount);
 
@@ -62,8 +69,8 @@ public class UserAccountService implements IUserAccountService {
             return mUserAccountRepository.save(userAccount);
         } catch (DataIntegrityViolationException dataIntegrityViolationException) {
             throw resolveDuplicateRegistrationException(
-                normalizedUserName,
-                normalizedEmailAddress,
+                workspaceId,
+                emailAddress,
                 dataIntegrityViolationException
             );
         }
@@ -74,28 +81,28 @@ public class UserAccountService implements IUserAccountService {
     public UserAccount registerGoogleUserAccount(RegisterGoogleUserAccountCommand registerGoogleUserAccountCommand) {
         validateRegisterGoogleUserAccountCommand(registerGoogleUserAccountCommand);
 
-        String normalizedUserName = normalizeUserName(registerGoogleUserAccountCommand.getUserName());
-        String normalizedEmailAddress = normalizeEmailAddress(registerGoogleUserAccountCommand.getEmailAddress());
-        String normalizedGoogleSubject = registerGoogleUserAccountCommand.getGoogleSubject().trim();
-        String rawPassword = registerGoogleUserAccountCommand.getRawPassword();
+        WorkspaceId workspaceId = registerGoogleUserAccountCommand.getWorkspaceId();
+        EmailAddress emailAddress = registerGoogleUserAccountCommand.getEmailAddress();
+        GoogleSubject googleSubject = registerGoogleUserAccountCommand.getGoogleSubject();
+        RawPassword rawPassword = registerGoogleUserAccountCommand.getRawPassword();
 
-        if (mUserAccountRepository.findByUserName(normalizedUserName).isPresent()) {
-            throw new DuplicateUserNameException(normalizedUserName);
+        if (mUserAccountRepository.findByUserName(workspaceId.getValue()).isPresent()) {
+            throw new DuplicateUserNameException(workspaceId);
         }
 
-        if (mUserAccountRepository.findByEmailAddress(normalizedEmailAddress).isPresent()) {
-            throw new DuplicateEmailException(normalizedEmailAddress);
+        if (mUserAccountRepository.findByEmailAddress(emailAddress.getValue()).isPresent()) {
+            throw new DuplicateEmailException(emailAddress);
         }
 
-        if (mUserAccountRepository.findByGoogleSubject(normalizedGoogleSubject).isPresent()) {
-            throw new DuplicateEmailException(normalizedEmailAddress);
+        if (mUserAccountRepository.findByGoogleSubject(googleSubject.getValue()).isPresent()) {
+            throw new DuplicateEmailException(emailAddress);
         }
 
         UserAccount userAccount = UserAccount.createGoogleVerifiedUser(
-            normalizedUserName,
-            normalizedEmailAddress,
-            mPasswordEncoder.encode(rawPassword),
-            normalizedGoogleSubject,
+            workspaceId,
+            emailAddress,
+            PasswordHash.create(mPasswordEncoder.encode(rawPassword.getValue())),
+            googleSubject,
             LocalDateTime.now(mClock)
         );
         grantAdministratorRoleIfConfigured(userAccount);
@@ -104,8 +111,8 @@ public class UserAccountService implements IUserAccountService {
             return mUserAccountRepository.save(userAccount);
         } catch (DataIntegrityViolationException dataIntegrityViolationException) {
             throw resolveDuplicateRegistrationException(
-                normalizedUserName,
-                normalizedEmailAddress,
+                workspaceId,
+                emailAddress,
                 dataIntegrityViolationException
             );
         }
@@ -113,73 +120,67 @@ public class UserAccountService implements IUserAccountService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UserAccount> findUserAccountByLoginIdentifier(String loginIdentifierOrNull) {
-        if (loginIdentifierOrNull == null || loginIdentifierOrNull.isBlank()) {
+    public Optional<UserAccount> findUserAccountByLoginIdentifier(LoginIdentifier loginIdentifierOrNull) {
+        if (loginIdentifierOrNull == null) {
             return Optional.empty();
         }
 
-        return mUserAccountRepository.findByLoginIdentifier(loginIdentifierOrNull.trim());
+        return mUserAccountRepository.findByLoginIdentifier(loginIdentifierOrNull.getValue());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UserAccount> findUserAccountByEmailAddress(String emailAddressOrNull) {
-        if (emailAddressOrNull == null || emailAddressOrNull.isBlank()) {
+    public Optional<UserAccount> findUserAccountByEmailAddress(EmailAddress emailAddressOrNull) {
+        if (emailAddressOrNull == null) {
             return Optional.empty();
         }
 
-        return mUserAccountRepository.findByEmailAddress(normalizeEmailAddress(emailAddressOrNull));
+        return mUserAccountRepository.findByEmailAddress(emailAddressOrNull.getValue());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<UserAccount> findUserAccountByGoogleSubject(String googleSubjectOrNull) {
-        if (googleSubjectOrNull == null || googleSubjectOrNull.isBlank()) {
+    public Optional<UserAccount> findUserAccountByGoogleSubject(GoogleSubject googleSubjectOrNull) {
+        if (googleSubjectOrNull == null) {
             return Optional.empty();
         }
 
-        return mUserAccountRepository.findByGoogleSubject(googleSubjectOrNull.trim());
+        return mUserAccountRepository.findByGoogleSubject(googleSubjectOrNull.getValue());
     }
 
     @Override
     @Transactional
-    public Optional<UserAccount> connectGoogleIdentityByEmailAddress(
-        String emailAddressOrNull,
-        String googleSubjectOrNull
-    ) {
-        if (emailAddressOrNull == null || emailAddressOrNull.isBlank()) {
+    public Optional<UserAccount> connectGoogleIdentity(GoogleIdentityConnectionCommand googleIdentityConnectionCommand) {
+        if (googleIdentityConnectionCommand == null) {
             return Optional.empty();
         }
 
-        if (googleSubjectOrNull == null || googleSubjectOrNull.isBlank()) {
-            return Optional.empty();
-        }
-
-        String normalizedEmailAddress = normalizeEmailAddress(emailAddressOrNull);
-        String normalizedGoogleSubject = googleSubjectOrNull.trim();
-        Optional<UserAccount> existingGoogleUserAccountOrEmpty = mUserAccountRepository.findByGoogleSubject(normalizedGoogleSubject);
+        EmailAddress emailAddress = googleIdentityConnectionCommand.getEmailAddress();
+        GoogleSubject googleSubject = googleIdentityConnectionCommand.getGoogleSubject();
+        Optional<UserAccount> existingGoogleUserAccountOrEmpty =
+            mUserAccountRepository.findByGoogleSubject(googleSubject.getValue());
         if (existingGoogleUserAccountOrEmpty.isPresent()) {
             return existingGoogleUserAccountOrEmpty;
         }
 
-        return mUserAccountRepository.findByEmailAddress(normalizedEmailAddress)
+        return mUserAccountRepository.findByEmailAddress(emailAddress.getValue())
             .map(userAccount -> {
-                userAccount.connectGoogleIdentity(normalizedGoogleSubject, LocalDateTime.now(mClock));
+                userAccount.connectGoogleIdentity(googleSubject, LocalDateTime.now(mClock));
                 return userAccount;
             });
     }
 
     @Override
     @Transactional
-    public void changePassword(UserAccountId userAccountId, String currentRawPassword, String newRawPassword) {
-        validatePasswordChangeInput(userAccountId, currentRawPassword, newRawPassword);
+    public void changePassword(PasswordChangeCommand passwordChangeCommand) {
+        validatePasswordChangeCommand(passwordChangeCommand);
 
-        UserAccount userAccount = getRequiredUserAccount(userAccountId);
-        if (!mPasswordEncoder.matches(currentRawPassword, userAccount.getPassword())) {
+        UserAccount userAccount = getRequiredUserAccount(passwordChangeCommand.getUserAccountId());
+        if (!mPasswordEncoder.matches(passwordChangeCommand.getCurrentRawPassword().getValue(), userAccount.getPassword())) {
             throw new InvalidCurrentPasswordException();
         }
 
-        applyNewPassword(userAccount, newRawPassword);
+        applyNewPassword(userAccount, passwordChangeCommand.getNewRawPassword());
     }
 
     private static void validateRegisterUserAccountCommand(RegisterUserAccountCommand registerUserAccountCommand) {
@@ -187,16 +188,12 @@ public class UserAccountService implements IUserAccountService {
             throw new IllegalArgumentException("registerUserAccountCommand must not be null.");
         }
 
-        if (registerUserAccountCommand.getUserName() == null || registerUserAccountCommand.getUserName().isBlank()) {
-            throw new IllegalArgumentException("userName must not be blank.");
+        if (registerUserAccountCommand.getWorkspaceId() == null) {
+            throw new IllegalArgumentException("workspaceId must not be null.");
         }
 
-        if (registerUserAccountCommand.getEmailAddress() == null || registerUserAccountCommand.getEmailAddress().isBlank()) {
-            throw new IllegalArgumentException("emailAddress must not be blank.");
-        }
-
-        if (registerUserAccountCommand.getRawPassword() == null || registerUserAccountCommand.getRawPassword().isBlank()) {
-            throw new IllegalArgumentException("rawPassword must not be blank.");
+        if (registerUserAccountCommand.getEmailAddress() == null) {
+            throw new IllegalArgumentException("emailAddress must not be null.");
         }
 
         validateRawPassword(registerUserAccountCommand.getRawPassword());
@@ -209,62 +206,34 @@ public class UserAccountService implements IUserAccountService {
             throw new IllegalArgumentException("registerGoogleUserAccountCommand must not be null.");
         }
 
-        if (registerGoogleUserAccountCommand.getUserName() == null
-            || registerGoogleUserAccountCommand.getUserName().isBlank()) {
-            throw new IllegalArgumentException("userName must not be blank.");
+        if (registerGoogleUserAccountCommand.getWorkspaceId() == null) {
+            throw new IllegalArgumentException("workspaceId must not be null.");
         }
 
-        if (registerGoogleUserAccountCommand.getEmailAddress() == null
-            || registerGoogleUserAccountCommand.getEmailAddress().isBlank()) {
-            throw new IllegalArgumentException("emailAddress must not be blank.");
+        if (registerGoogleUserAccountCommand.getEmailAddress() == null) {
+            throw new IllegalArgumentException("emailAddress must not be null.");
         }
 
-        if (registerGoogleUserAccountCommand.getGoogleSubject() == null
-            || registerGoogleUserAccountCommand.getGoogleSubject().isBlank()) {
-            throw new IllegalArgumentException("googleSubject must not be blank.");
-        }
-
-        if (registerGoogleUserAccountCommand.getRawPassword() == null
-            || registerGoogleUserAccountCommand.getRawPassword().isBlank()) {
-            throw new IllegalArgumentException("rawPassword must not be blank.");
+        if (registerGoogleUserAccountCommand.getGoogleSubject() == null) {
+            throw new IllegalArgumentException("googleSubject must not be null.");
         }
 
         validateRawPassword(registerGoogleUserAccountCommand.getRawPassword());
     }
 
-    private static void validatePasswordChangeInput(
-        UserAccountId userAccountId,
-        String currentRawPassword,
-        String newRawPassword
-    ) {
-        if (userAccountId == null) {
-            throw new IllegalArgumentException("userAccountId must not be null.");
+    private static void validatePasswordChangeCommand(PasswordChangeCommand passwordChangeCommand) {
+        if (passwordChangeCommand == null) {
+            throw new IllegalArgumentException("passwordChangeCommand must not be null.");
         }
 
-        if (currentRawPassword == null || currentRawPassword.isBlank()) {
-            throw new IllegalArgumentException("currentRawPassword must not be blank.");
-        }
-
-        validateRawPassword(newRawPassword);
+        validateRawPassword(passwordChangeCommand.getCurrentRawPassword());
+        validateRawPassword(passwordChangeCommand.getNewRawPassword());
     }
 
-    private static void validateRawPassword(String rawPassword) {
-        if (rawPassword == null || rawPassword.isBlank()) {
-            throw new IllegalArgumentException("rawPassword must not be blank.");
+    private static void validateRawPassword(RawPassword rawPassword) {
+        if (rawPassword == null) {
+            throw new IllegalArgumentException("rawPassword must not be null.");
         }
-
-        int rawPasswordLength = rawPassword.length();
-        if (rawPasswordLength < 8 || rawPasswordLength > 72) {
-            throw new IllegalArgumentException("rawPassword length must be between 8 and 72.");
-        }
-    }
-
-    private static String normalizeUserName(String userName) {
-        return userName.trim();
-    }
-
-    private static String normalizeEmailAddress(String emailAddress) {
-        return emailAddress.trim().toLowerCase(Locale.ROOT);
     }
 
     private UserAccount getRequiredUserAccount(UserAccountId userAccountId) {
@@ -272,28 +241,28 @@ public class UserAccountService implements IUserAccountService {
             .orElseThrow(() -> new IllegalStateException("User account not found."));
     }
 
-    private void applyNewPassword(UserAccount userAccount, String newRawPassword) {
+    private void applyNewPassword(UserAccount userAccount, RawPassword newRawPassword) {
         validateRawPassword(newRawPassword);
-        userAccount.changePasswordHash(mPasswordEncoder.encode(newRawPassword));
+        userAccount.changePasswordHash(PasswordHash.create(mPasswordEncoder.encode(newRawPassword.getValue())));
     }
 
     private void grantAdministratorRoleIfConfigured(UserAccount userAccount) {
-        if (mAdministratorWorkspaceIdPolicy.isAdministratorWorkspaceId(userAccount.getUsername())) {
+        if (mAdministratorWorkspaceIdPolicy.isAdministratorWorkspaceId(userAccount.getWorkspaceId())) {
             userAccount.grantAdministratorRole();
         }
     }
 
     private RuntimeException resolveDuplicateRegistrationException(
-        String normalizedUserName,
-        String normalizedEmailAddress,
+        WorkspaceId workspaceId,
+        EmailAddress emailAddress,
         DataIntegrityViolationException dataIntegrityViolationException
     ) {
-        if (mUserAccountRepository.findByUserName(normalizedUserName).isPresent()) {
-            return new DuplicateUserNameException(normalizedUserName);
+        if (mUserAccountRepository.findByUserName(workspaceId.getValue()).isPresent()) {
+            return new DuplicateUserNameException(workspaceId);
         }
 
-        if (mUserAccountRepository.findByEmailAddress(normalizedEmailAddress).isPresent()) {
-            return new DuplicateEmailException(normalizedEmailAddress);
+        if (mUserAccountRepository.findByEmailAddress(emailAddress.getValue()).isPresent()) {
+            return new DuplicateEmailException(emailAddress);
         }
 
         return dataIntegrityViolationException;
