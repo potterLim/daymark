@@ -1,16 +1,21 @@
 SPRING_PROFILES_ACTIVE=production
 
-DAYMARK_PUBLIC_BASE_URL=https://usedaymark.com
+DAYMARK_PUBLIC_BASE_URL=https://daymark.example.com
 DAYMARK_REMEMBER_ME_COOKIE_SECURE=true
 SERVER_SERVLET_SESSION_COOKIE_SECURE=true
 
 DATABASE_URL=jdbc:mysql://daymark-production-db.xxxxxxxxxxxx.ap-northeast-2.rds.amazonaws.com:3306/daymark?useSSL=true&requireSSL=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
 DATABASE_USERNAME=daymark
+DATABASE_PASSWORD=change-this-database-password
+
+DAYMARK_REMEMBER_ME_KEY=change-this-remember-me-key
 
 GOOGLE_CLIENT_ID=xxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=change-this-google-client-secret
 
+DAYMARK_ADMINISTRATOR_WORKSPACE_IDS=potterLim
 DAYMARK_ALERT_WEBHOOK_URL=https://hooks.example.com/daymark-alerts
+DAYMARK_REQUIRE_ALERT_WEBHOOK=false
 DAYMARK_WEEKLY_SUMMARY_ENABLED=true
 DAYMARK_WEEKLY_SUMMARY_CRON=0 0 9 * * MON
 DAYMARK_WEEKLY_SUMMARY_ZONE=Asia/Seoul
