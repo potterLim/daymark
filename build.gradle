@@ -1,11 +1,13 @@
 plugins {
     id 'java'
+    id 'jacoco'
+    id 'checkstyle'
     id 'org.springframework.boot' version '3.5.9'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.potterlim'
-version = '0.0.1-SNAPSHOT'
+version = '1.0.1'
 
 java {
     toolchain {
@@ -15,6 +17,11 @@ java {
 
 repositories {
     mavenCentral()
+}
+
+checkstyle {
+    toolVersion = '10.21.4'
+    configFile = file('config/checkstyle/checkstyle.xml')
 }
 
 dependencies {
@@ -45,6 +52,59 @@ tasks.named('test') {
     filter {
         excludeTestsMatching 'com.potterlim.daymark.MySqlIntegrationTests'
     }
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn tasks.named('test')
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.75
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.50
+            }
+        }
+    }
+}
+
+tasks.register('verifyPublicRepository', Exec) {
+    description = 'Checks that public repository files do not include local-only material or secret patterns.'
+    group = 'verification'
+    commandLine 'bash', 'scripts/verify-public-repository.sh'
+}
+
+tasks.register('verifyStaticAssets', Exec) {
+    description = 'Checks static assets and templates for debug hooks and unsafe inline handlers.'
+    group = 'verification'
+    commandLine 'bash', 'scripts/verify-static-assets.sh'
+}
+
+tasks.register('verifyLineEndings', Exec) {
+    description = 'Checks tracked text files for LF line endings and final newline.'
+    group = 'verification'
+    commandLine 'bash', 'scripts/verify-line-endings.sh'
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('jacocoTestReport')
+    dependsOn tasks.named('jacocoTestCoverageVerification')
+    dependsOn tasks.named('verifyLineEndings')
+    dependsOn tasks.named('verifyPublicRepository')
+    dependsOn tasks.named('verifyStaticAssets')
 }
 
 tasks.register('mysqlIntegrationTest', Test) {
