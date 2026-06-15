@@ -4,6 +4,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import com.potterlim.daymark.dto.auth.GoogleRegistrationSession;
 import com.potterlim.daymark.entity.UserAccount;
+import com.potterlim.daymark.identity.EmailAddress;
+import com.potterlim.daymark.identity.PasswordHash;
+import com.potterlim.daymark.identity.WorkspaceId;
 import com.potterlim.daymark.repository.IDaymarkEntryRepository;
 import com.potterlim.daymark.repository.IOperationUsageEventRepository;
 import com.potterlim.daymark.repository.IUserAccountRepository;
@@ -103,9 +106,9 @@ class MySqlIntegrationTests {
 
         UserAccount userAccount = mUserAccountRepository.save(
             UserAccount.createRegularUser(
-                "mysql-planner",
-                "mysql-planner@example.com",
-                "$2a$10$PtR3XieP7rUoPxPAtxEvsOrHwLJ27LVa9Ezg4Q8VE3d2rYZRk5v7a"
+                WorkspaceId.create("mysql-planner"),
+                EmailAddress.create("mysql-planner@example.com"),
+                PasswordHash.create("$2a$10$PtR3XieP7rUoPxPAtxEvsOrHwLJ27LVa9Ezg4Q8VE3d2rYZRk5v7a")
             )
         );
         userAccount.markEmailAddressVerified(java.time.LocalDateTime.now());

@@ -1,7 +1,11 @@
 package com.potterlim.daymark;
 
 import java.time.LocalDate;
+import java.util.List;
 import com.potterlim.daymark.dto.auth.RegisterUserAccountCommand;
+import com.potterlim.daymark.support.DaymarkGoalCheckItem;
+import com.potterlim.daymark.dto.daymark.EveningReviewSaveCommand;
+import com.potterlim.daymark.dto.daymark.MorningPlanSaveCommand;
 import com.potterlim.daymark.entity.DaymarkEntry;
 import com.potterlim.daymark.entity.EOperationEventType;
 import com.potterlim.daymark.entity.UserAccount;
@@ -13,9 +17,10 @@ import com.potterlim.daymark.service.IDaymarkService;
 import com.potterlim.daymark.service.IUserAccountService;
 import com.potterlim.daymark.service.OperationUsageEventService;
 import com.potterlim.daymark.service.WeeklyOperationMetricSnapshotService;
-import com.potterlim.daymark.service.WeeklyOperationsSummary;
+import com.potterlim.daymark.support.WeeklyOperationsSummary;
 import com.potterlim.daymark.service.WeeklyOperationsSummaryService;
-import com.potterlim.daymark.support.EDaymarkSectionType;
+import com.potterlim.daymark.support.DaymarkEntryDate;
+import com.potterlim.daymark.support.DaymarkWeekRange;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,57 +74,27 @@ class WeeklyOperationsSummaryServiceTests {
         LocalDate weekStartDate = weekEndDate.minusDays(6L);
 
         UserAccount firstUser = mUserAccountService.registerUserAccount(
-            new RegisterUserAccountCommand("summary-user-1", "summary-user-1@example.com", "pass1234")
+            RegisterUserAccountCommand.createFromRawInput("summary-user-1", "summary-user-1@example.com", "pass1234")
         );
         UserAccount secondUser = mUserAccountService.registerUserAccount(
-            new RegisterUserAccountCommand("summary-user-2", "summary-user-2@example.com", "pass1234")
+            RegisterUserAccountCommand.createFromRawInput("summary-user-2", "summary-user-2@example.com", "pass1234")
         );
         UserAccount thirdUser = mUserAccountService.registerUserAccount(
-            new RegisterUserAccountCommand("summary-user-3", "summary-user-3@example.com", "pass1234")
+            RegisterUserAccountCommand.createFromRawInput("summary-user-3", "summary-user-3@example.com", "pass1234")
         );
         UserAccount adminUser = mUserAccountService.registerUserAccount(
-            new RegisterUserAccountCommand("summary-admin", "summary-admin@example.com", "pass1234")
+            RegisterUserAccountCommand.createFromRawInput("summary-admin", "summary-admin@example.com", "pass1234")
         );
         adminUser.grantAdministratorRole();
         mUserAccountRepository.saveAndFlush(adminUser);
 
-        mDaymarkService.writeSection(
-            weekStartDate,
-            firstUser.getUserAccountId(),
-            EDaymarkSectionType.GOALS,
-            "핵심 작업 정리"
-        );
-        mDaymarkService.writeSection(
-            weekStartDate,
-            firstUser.getUserAccountId(),
-            EDaymarkSectionType.EVENING_GOALS,
-            "- [x] 목표 1\r\n- [ ] 목표 2"
-        );
-        mDaymarkService.writeSection(
-            weekStartDate.plusDays(2L),
-            firstUser.getUserAccountId(),
-            EDaymarkSectionType.GOALS,
-            "리뷰 준비"
-        );
-        mDaymarkService.writeSection(
-            weekStartDate.plusDays(4L),
-            secondUser.getUserAccountId(),
-            EDaymarkSectionType.EVENING_GOALS,
-            "- [x] 목표 3"
-        );
-        mDaymarkEntryRepository.save(DaymarkEntry.create(thirdUser, weekStartDate.plusDays(5L)));
-        mDaymarkService.writeSection(
-            weekStartDate.plusDays(1L),
-            adminUser.getUserAccountId(),
-            EDaymarkSectionType.GOALS,
-            "관리자 점검"
-        );
-        mDaymarkService.writeSection(
-            weekStartDate.plusDays(1L),
-            adminUser.getUserAccountId(),
-            EDaymarkSectionType.EVENING_GOALS,
-            "- [x] 관리자 점검"
-        );
+        saveMorningPlan(weekStartDate, firstUser, "목표 1\r\n목표 2");
+        saveEveningReview(weekStartDate, firstUser, createCompletedGoal("목표 1"), createPendingGoal("목표 2"));
+        saveMorningPlan(weekStartDate.plusDays(2L), firstUser, "리뷰 준비");
+        saveEveningReview(weekStartDate.plusDays(4L), secondUser, createCompletedGoal("목표 3"));
+        mDaymarkEntryRepository.save(DaymarkEntry.create(thirdUser, DaymarkEntryDate.of(weekStartDate.plusDays(5L))));
+        saveMorningPlan(weekStartDate.plusDays(1L), adminUser, "관리자 점검");
+        saveEveningReview(weekStartDate.plusDays(1L), adminUser, createCompletedGoal("관리자 점검"));
         recordUserEvent(EOperationEventType.SIGN_IN_SUCCEEDED, firstUser);
         recordUserEvent(EOperationEventType.RECORD_LIBRARY_VIEWED, firstUser);
         recordUserEvent(EOperationEventType.WEEKLY_REVIEW_VIEWED, firstUser);
@@ -131,7 +106,7 @@ class WeeklyOperationsSummaryServiceTests {
         mOperationUsageEventService.recordAnonymousEvent(EOperationEventType.SIGN_IN_FAILED);
 
         WeeklyOperationsSummary weeklyOperationsSummary =
-            mWeeklyOperationsSummaryService.buildWeeklySummary(weekStartDate, weekEndDate);
+            mWeeklyOperationsSummaryService.buildWeeklySummary(DaymarkWeekRange.of(weekStartDate, weekEndDate));
 
         assertEquals(3L, weeklyOperationsSummary.getTotalRegisteredUsers());
         assertEquals(3L, weeklyOperationsSummary.getNewlyRegisteredUsers());
@@ -166,5 +141,39 @@ class WeeklyOperationsSummaryServiceTests {
 
     private void recordUserEvent(EOperationEventType operationEventType, UserAccount userAccount) {
         mOperationUsageEventService.recordUserEvent(operationEventType, userAccount.getUserAccountId());
+    }
+
+    private void saveMorningPlan(LocalDate date, UserAccount userAccount, String goals) {
+        mDaymarkService.saveMorningPlan(MorningPlanSaveCommand.createFromRawInput(
+            date,
+            userAccount.getUserAccountId(),
+            goals,
+            "",
+            ""
+        ));
+    }
+
+    private void saveEveningReview(
+        LocalDate date,
+        UserAccount userAccount,
+        DaymarkGoalCheckItem... goalItems
+    ) {
+        mDaymarkService.saveEveningReview(EveningReviewSaveCommand.createFromRawInput(
+            date,
+            userAccount.getUserAccountId(),
+            List.of(goalItems),
+            "",
+            "",
+            "",
+            ""
+        ));
+    }
+
+    private static DaymarkGoalCheckItem createCompletedGoal(String text) {
+        return DaymarkGoalCheckItem.createCompleted(text);
+    }
+
+    private static DaymarkGoalCheckItem createPendingGoal(String text) {
+        return DaymarkGoalCheckItem.createPending(text);
     }
 }
